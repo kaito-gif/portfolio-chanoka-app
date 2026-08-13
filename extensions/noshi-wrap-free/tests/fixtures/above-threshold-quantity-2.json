@@ -1,0 +1,14 @@
+{
+  "payload": {
+    "export": "cart-lines-discounts-generate-run",
+    "target": "cart.lines.discounts.generate.run",
+    "input": {
+      "cart": {
+        "cost": { "subtotalAmount": { "amount": "5600" } },
+        "lines": [{"id":"gid://shopify/CartLine/1","quantity":2,"noshiTitle":{"value":"御中元"}}]
+      },
+      "discount": { "discountClasses": ["PRODUCT"] }
+    },
+    "output": { "operations": [{"productDiscountsAdd":{"candidates":[{"message":"包装料無料","targets":[{"cartLine":{"id":"gid://shopify/CartLine/1"}}],"value":{"fixedAmount":{"amount":300,"appliesToEachItem":true}}}],"selectionStrategy":"ALL"}}] }
+  }
+}

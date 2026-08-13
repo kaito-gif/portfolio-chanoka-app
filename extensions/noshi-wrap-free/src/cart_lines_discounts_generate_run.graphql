@@ -1,0 +1,19 @@
+query CartInput {
+  cart {
+    cost {
+      subtotalAmount {
+        amount
+      }
+    }
+    lines {
+      id
+      quantity
+      noshiTitle: attribute(key: "表書き") {
+        value
+      }
+    }
+  }
+  discount {
+    discountClasses
+  }
+}

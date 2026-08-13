@@ -1,0 +1,18 @@
+api_version = "2026-07"
+
+[[extensions]]
+name = "t:name"
+handle = "noshi-wrap-free"
+type = "function"
+uid = "600d5a47-8e14-8cff-235b-e7fc0fc915164f5e3b1d"
+description = "t:description"
+
+  [[extensions.targeting]]
+  target = "cart.lines.discounts.generate.run"
+  input_query = "src/cart_lines_discounts_generate_run.graphql"
+  export = "cart-lines-discounts-generate-run"
+
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"

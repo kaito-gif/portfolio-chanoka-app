@@ -67,4 +67,9 @@ fixture テスト4件と開発ストアでの通し確認を通した。料金�
 `cartTransformCreate` で開発ストアに CartTransform を1件作成済み。
 詳細と、価格指定のハマりどころは `docs/requirements.md` の「リスク1」を参照。
 
+2026-08-13: リスク4を完了。`extensions/noshi-wrap-free`（Discount Function）を実装し、
+fixture テスト6件と実機確認を通した。開発ストアに自動割引
+「包装料無料(一定金額以上)」を1件作成済み。コンポーネント単位の割引はできず、
+バンドル行への固定額割引で代替している。詳細は `docs/requirements.md` の「リスク4」を参照。
+
 <!-- 以降、作業のたびに日付付きで追記する -->
