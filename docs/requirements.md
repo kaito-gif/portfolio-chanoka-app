@@ -222,23 +222,41 @@ app-owned Metaobject の型の実体は **`app--<アプリID>--<ハンドル>`**
 「〈スタッフの氏名〉が追加」と実名が表示される。**公開するスクリーンショットには
 実名が写り込む**ため、撮影前にマスクするか、表示名を架空名に変更する必要がある。
 
-### リスク5後半: Liquid からの読み出し（未検証・着手済み）
+### リスク5後半: Liquid からの読み出し（2026-08-13）
 
-`extensions/noshi-cart`（Theme App Extension）を生成し、検証用の app block
-`blocks/noshi_options.liquid` を書いたところまで。**まだ画面で確認していない。**
+**結論: 素のテーマ Liquid から app-owned Metaobject を読める。**
+`shopify theme console`（Liquid REPL）で確認した。書き方は下記の通り。
 
-**進行を止めた理由**: `shopify app dev --theme <id>` が案内するホストテーマの設置導線が、
-**第1弾の証明用テーマ（live の Dawn baseline）のテーマエディタ**を指している。
-ここで app block を配置すると `templates/cart.json` が書き換わり、
-「触ってはいけないもの」に挙げた第1弾テーマの改変になる。
-**検証用に別テーマ（baseline の複製、または未公開の別テーマ）をホストテーマとして
-用意してから続ける。**
+| 用途 | 書き方 | 結果 |
+|---|---|---|
+| 全件 | `metaobjects['app--<アプリID>--noshi_title'].values` | 7件取得できた |
+| フィールド | `entry.label` | `.value` は不要。値が直接返る |
+| 単体（ハンドル指定） | `metaobjects['app--<アプリID>--noshi_title'].<handle>` | 取得できた |
+| 単体（`.values` 経由） | `metaobjects[...].values.<handle>` | **null。使えない** |
+| 添字 | `metaobjects[...].values[0]` | **null。`\| first` を使う** |
+| `$app:` 糖衣 | `metaobjects['$app:noshi_title']` | **`Unknown object` エラー。Liquid では使えない** |
 
-検証用ブロックで確かめたい点:
+**帰結1: アプリID（`410001276929`）を Liquid に書かないと型を解決できない。**
+`$app:` は TOML と Admin API 側の記法で、Liquid には通じない。
+アプリIDはアプリ固有でストアをまたいで変わらないためハードコードでも動くが、
+リポジトリを公開する以上、意味の分からない数値が裸で残るのは良くない。
+実装時にブロック設定かスニペットへ切り出して1箇所に閉じる。
 
-- `metaobjects['app--<アプリID>--<ハンドル>'].values` で一覧を引けるか
-- フィールドの取り出しが `entry.label` か `entry.label.value` か
-- アプリIDをLiquidにハードコードせずに済む書き方があるか（現状はハードコードしている）
+**帰結2: `.values` の既定の並びは登録順ではない。** 実測では最後に作った
+「無地熨斗」が先頭に来た。`| sort: 'display_order'` を通して初めて
+御中元→御歳暮→御祝→内祝→御礼→粗品→無地熨斗 の順になる。
+**`display_order` フィールドは必須であって、あれば便利という位置づけではない。**
+
+**未確認**: 上記はすべて `shopify theme console` による確認であり、
+**Theme App Extension の app block としてカートページに配置してレンダリングした状態では
+まだ確認していない。** `metaobjects` はストアフロント共通のグローバルなので同じ結果に
+なる見込みだが、実際に画面へ出すまでは確定としない。
+
+**検証用のホストテーマについて**: `shopify app dev --theme <id>` が案内する設置導線は
+指定したホストテーマのテーマエディタを開くため、第1弾の証明用テーマ（live の
+Dawn baseline）を指定すると `templates/cart.json` を書き換えてしまう。
+**baseline を複製した未公開テーマ `noshi-app dev host` を用意し、そちらをホストにする。**
+複製は `shopify theme duplicate --theme <baselineのid> --force` で作れる。
 
 ## 公開情報のガードレール
 
