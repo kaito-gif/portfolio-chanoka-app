@@ -119,8 +119,8 @@ READMEにも明記する。
 1. Cart Transform の expand で追加した「のし・包装料」が、カート／チェックアウトで
    どう表示されるか。expand は親をバンドル扱いにするため、Dawn 標準のカート表示と
    競合しないか
-2. のし・包装料用のダミー商品（在庫追跡なし・非公開）を `chanoka-demo` に作る必要がある。
-   expand には実在の variant ID が要るため
+2. ~~のし・包装料用のダミー商品（在庫追跡なし・非公開）を `chanoka-demo` に作る~~
+   → 2026-08-13 完了。結果は下記「検証結果」を参照
 3. カート上で line item properties を後から編集する経路。`/cart/change.js` で properties を
    更新する際の行の同一性の扱い
 4. Discount Function で「のし・包装料」のラインだけを100%割引の対象にする方法
@@ -302,6 +302,37 @@ JSON を書いて `shopify theme push` するだけでよく、スクリプト�
 Dawn baseline）を指定すると `templates/cart.json` を書き換えてしまう。
 **baseline を複製した未公開テーマ `noshi-app dev host` を用意し、そちらをホストにする。**
 複製は `shopify theme duplicate --theme <baselineのid> --force` で作れる。
+
+### リスク2: のし・包装料用のダミー商品（2026-08-13）
+
+`productSet` で2件作成した。設定はすべて意図どおりであることを確認済み。
+
+| 項目 | のし代 | 包装料 |
+|---|---|---|
+| handle | `noshi-fee` | `gift-wrap-fee` |
+| SKU | `NOSHI-FEE` | `WRAP-FEE` |
+| 価格 | 100 | 300 |
+| `status` | `ACTIVE` | `ACTIVE` |
+| `publishedAt` / `onlineStoreUrl` | どちらも `null` | どちらも `null` |
+| 在庫追跡 `inventoryItem.tracked` | `false` | `false` |
+| 配送要否 `requiresShipping` | `false` | `false` |
+| `taxable` | `true` | `true` |
+
+**`status` は `ACTIVE` のまま、販売チャネルへ未公開という状態にしている。**
+`publishedAt` と `onlineStoreUrl` がどちらも `null` なので顧客からは到達できない。
+`DRAFT` にしなかったのは、Cart Transform が参照できる状態を保つため
+（`DRAFT` でも参照できるかは未確認なので、確実な側に倒した）。
+
+価格は税別・税込どちらの扱いになるかを含め、**リスク9（軽減税率）で見直す前提の仮の値**。
+`taxable: true` にしてあるだけで、税率の分離はまだ何もしていない。
+
+**実装上の注意**: variant ID はストアごとに違うため、**Function やブロックに直接
+書き込まない**。アプリ側の設定（Metafield か Metaobject）に持たせて参照する。
+どこに持たせるかはリスク1の実装時に決める。
+
+**未確認**: Cart Transform の expand が、販売チャネル未公開の variant を
+コンポーネントとして受け付けるか。**リスク1で最初に確かめること。**
+ここが駄目なら「非公開」の方針自体を見直す必要がある。
 
 ## 公開情報のガードレール
 
