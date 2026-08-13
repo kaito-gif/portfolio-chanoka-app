@@ -62,4 +62,9 @@ app block を受け入れないという構成要素#1に効く制約が判明�
 （在庫追跡なし・配送不要・販売チャネル未公開）。variant ID は
 `docs/requirements.md` の「リスク2」に記録してある。
 
+2026-08-13: リスク1を完了。`extensions/noshi-fee`（Cart Transform）を実装し、
+fixture テスト4件と開発ストアでの通し確認を通した。料金設計は維持できる。
+`cartTransformCreate` で開発ストアに CartTransform を1件作成済み。
+詳細と、価格指定のハマりどころは `docs/requirements.md` の「リスク1」を参照。
+
 <!-- 以降、作業のたびに日付付きで追記する -->
