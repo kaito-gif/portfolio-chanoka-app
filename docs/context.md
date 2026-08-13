@@ -49,4 +49,10 @@
 検証用ホストテーマとして baseline を複製した未公開テーマ `noshi-app dev host` を作成した
 （第1弾の証明用テーマを改変しないため）。
 
+2026-08-13: app block のレンダリング確認は未完了のまま。`templates/cart.json` に参照を
+手書きして push する経路を2通り試したが描画されなかった。あわせて、Dawn の
+`main-cart-items` が app block を受け入れないという構成要素#1に効く制約が判明した。
+詳細は `docs/requirements.md` の「Dawn のカートセクションが app block を受け入れるか」
+「app block の設置（未完了）」を参照。
+
 <!-- 以降、作業のたびに日付付きで追記する -->

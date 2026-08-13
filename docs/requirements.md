@@ -252,6 +252,47 @@ app-owned Metaobject の型の実体は **`app--<アプリID>--<ハンドル>`**
 まだ確認していない。** `metaobjects` はストアフロント共通のグローバルなので同じ結果に
 なる見込みだが、実際に画面へ出すまでは確定としない。
 
+### Dawn のカートセクションが app block を受け入れるか（2026-08-13）
+
+**構成要素#1の設計に直結する制約が見つかった。**
+
+| セクション | `{"type": "@app"}` の有無 |
+|---|---|
+| `sections/main-cart-footer.liquid` | **あり**（app block を置ける） |
+| `sections/main-cart-items.liquid` | **なし**（app block を置けない） |
+
+つまり **Dawn 標準のままでは、カートの各行の中に熨斗入力UIを差し込めない。**
+「確定事項」では熨斗の指定単位を商品単位（cart line attributes）と決めているが、
+入力UIの置き場所はカートフッター側になり、そこから各行の入力をどう出すかを
+別途設計する必要がある（フッター内に行ごとの入力をまとめて並べる等）。
+第1弾のテーマを書き換えて `main-cart-items` に `@app` を足すのは
+「触ってはいけないもの」に該当するため採らない。
+
+### app block の設置（未完了）
+
+**カートページに app block を配置してレンダリングする確認は、まだ取れていない。**
+
+テーマエディタを使わず、ホストテーマの `templates/cart.json` に app block の参照を
+手で書いて `shopify theme push` する経路を試したが、**ブロックは描画されなかった**
+（不正な type は Shopify が黙って無視する）。試した type 文字列は2種類:
+
+- `shopify://apps/noshi-gift-app/blocks/noshi_options/<uid全体>`
+- `shopify://apps/noshi-gift-app/blocks/noshi_options/<uidの先頭36文字>`
+
+形式自体は公式ドキュメントの例
+`shopify://apps/product-reviews/blocks/reviews/bae150af-8da8-48b2-9867-398188115e5f`
+と同じ（末尾は標準の8-4-4-4-12のUUID）。`shopify.extension.toml` の `uid` は
+UUIDの後ろに8文字余分が付いた形なので、先頭36文字がUUIDだと考えたが解決しなかった。
+**アプリのハンドルが `noshi-gift-app` と異なるか、`shopify app dev` の開発プレビュー中の
+拡張はこの形式では参照できないかのどちらか**と見ている。
+
+次に試すべきことは2つ。
+
+1. テーマエディタから配置する（正規の手順。Shopify が正しい type を書き込むので、
+   その文字列を `shopify theme pull` で回収すれば以後スクリプト化できる）
+2. `shopify app deploy` でアプリバージョンを作ってから再試行する
+   （配布形態の選択とは別物で、後戻りできる操作）
+
 **検証用のホストテーマについて**: `shopify app dev --theme <id>` が案内する設置導線は
 指定したホストテーマのテーマエディタを開くため、第1弾の証明用テーマ（live の
 Dawn baseline）を指定すると `templates/cart.json` を書き換えてしまう。
