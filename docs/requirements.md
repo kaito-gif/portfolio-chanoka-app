@@ -124,9 +124,8 @@ READMEにも明記する。
 3. カート上で line item properties を後から編集する経路。`/cart/change.js` で properties を
    更新する際の行の同一性の扱い
 4. Discount Function で「のし・包装料」のラインだけを100%割引の対象にする方法
-5. app-owned Metaobject を Theme App Extension（Liquid / フロント）側から読む方法。
-   **2026-08-13 に前半（管理画面からのエントリー管理）は検証済み。Liquid からの読み出しは未検証。**
-   結果は下記「検証結果」を参照
+5. ~~app-owned Metaobject を Theme App Extension（Liquid / フロント）側から読む方法~~
+   → 2026-08-13 完了。結果は下記「検証結果」を参照
 6. ~~開発ストア `chanoka-demo` に custom distribution のアプリをインストールする手順。~~
    **2026-08-13 検証済み（一部）。** 結果は下記「検証結果」を参照
 7. チェックアウト拡張のプラン境界（Plus限定の範囲）を着手時に公式ドキュメントで再確認する。
@@ -247,10 +246,8 @@ app-owned Metaobject の型の実体は **`app--<アプリID>--<ハンドル>`**
 御中元→御歳暮→御祝→内祝→御礼→粗品→無地熨斗 の順になる。
 **`display_order` フィールドは必須であって、あれば便利という位置づけではない。**
 
-**未確認**: 上記はすべて `shopify theme console` による確認であり、
-**Theme App Extension の app block としてカートページに配置してレンダリングした状態では
-まだ確認していない。** `metaobjects` はストアフロント共通のグローバルなので同じ結果に
-なる見込みだが、実際に画面へ出すまでは確定としない。
+上記は `shopify theme console` で確認したのち、**app block として実際にストアフロントへ
+描画した状態でも同じ結果になることを確認済み**（下記「app block の設置とレンダリング」）。
 
 ### Dawn のカートセクションが app block を受け入れるか（2026-08-13）
 
@@ -268,30 +265,37 @@ app-owned Metaobject の型の実体は **`app--<アプリID>--<ハンドル>`**
 第1弾のテーマを書き換えて `main-cart-items` に `@app` を足すのは
 「触ってはいけないもの」に該当するため採らない。
 
-### app block の設置（未完了）
+### app block の設置とレンダリング（2026-08-13 検証済み）
 
-**カートページに app block を配置してレンダリングする確認は、まだ取れていない。**
+**app block はストアフロントで描画され、表書き7件が `display_order` 順に出た。**
+`熨斗なし / 御中元 / 御歳暮 / 御祝 / 内祝 / 御礼 / 粗品 / 無地熨斗`。
+これでリスク5は前半・後半とも決着した。
 
-テーマエディタを使わず、ホストテーマの `templates/cart.json` に app block の参照を
-手で書いて `shopify theme push` する経路を試したが、**ブロックは描画されなかった**
-（不正な type は Shopify が黙って無視する）。試した type 文字列は2種類:
+**ハマりどころ1: app block の type に入る UUID は、ローカルの `uid` とは別物。**
 
-- `shopify://apps/noshi-gift-app/blocks/noshi_options/<uid全体>`
-- `shopify://apps/noshi-gift-app/blocks/noshi_options/<uidの先頭36文字>`
+テーマエディタが書き込んだ実際の値:
 
-形式自体は公式ドキュメントの例
-`shopify://apps/product-reviews/blocks/reviews/bae150af-8da8-48b2-9867-398188115e5f`
-と同じ（末尾は標準の8-4-4-4-12のUUID）。`shopify.extension.toml` の `uid` は
-UUIDの後ろに8文字余分が付いた形なので、先頭36文字がUUIDだと考えたが解決しなかった。
-**アプリのハンドルが `noshi-gift-app` と異なるか、`shopify app dev` の開発プレビュー中の
-拡張はこの形式では参照できないかのどちらか**と見ている。
+```
+shopify://apps/noshi-gift-app/blocks/noshi_options/019ff8ba-d58b-7918-a4ee-635a76832456
+```
 
-次に試すべきことは2つ。
+`shopify.extension.toml` の `uid` は `6f2ea112-...` で始まる全く別の値で、
+その先頭36文字を使っても解決しない（**不正な type は Shopify が黙って無視するため、
+エラーも出ずにブロックが消えるだけ**で原因が分かりにくい）。
+UUIDは Shopify 側が採番するので、**一度テーマエディタで配置して
+`shopify theme pull` で回収するのが確実**。回収さえすれば以後の配置は
+JSON を書いて `shopify theme push` するだけでよく、スクリプト化できる。
+（この UUID がストアをまたいで同じかは未確認。）
 
-1. テーマエディタから配置する（正規の手順。Shopify が正しい type を書き込むので、
-   その文字列を `shopify theme pull` で回収すれば以後スクリプト化できる）
-2. `shopify app deploy` でアプリバージョンを作ってから再試行する
-   （配布形態の選択とは別物で、後戻りできる操作）
+**ハマりどころ2: 保存先はセクショングループで、`templates/*.json` ではない。**
+
+サイト共通のフッターに置いた場合、参照は `sections/footer-group.json` に入る。
+`templates/*.json` と `config/settings_data.json` だけを見ても見つからないため、
+配置の確認は **`sections/*.json` を含めて `grep -rn "shopify://apps"`** で行う。
+
+**残っている整理**: 今回はテーマエディタ上の操作の都合でサイト共通のフッターに
+置いたため、全ページに表書きのセレクトが出ている。本来の置き場所は
+カートの `main-cart-footer` セクション。実装時に移す。
 
 **検証用のホストテーマについて**: `shopify app dev --theme <id>` が案内する設置導線は
 指定したホストテーマのテーマエディタを開くため、第1弾の証明用テーマ（live の

@@ -49,10 +49,13 @@
 検証用ホストテーマとして baseline を複製した未公開テーマ `noshi-app dev host` を作成した
 （第1弾の証明用テーマを改変しないため）。
 
-2026-08-13: app block のレンダリング確認は未完了のまま。`templates/cart.json` に参照を
-手書きして push する経路を2通り試したが描画されなかった。あわせて、Dawn の
-`main-cart-items` が app block を受け入れないという構成要素#1に効く制約が判明した。
-詳細は `docs/requirements.md` の「Dawn のカートセクションが app block を受け入れるか」
-「app block の設置（未完了）」を参照。
+2026-08-13: app block のレンダリングまで確認し、リスク5は決着。表書き7件が
+`display_order` 順にストアフロントへ出た。あわせて、Dawn の `main-cart-items` が
+app block を受け入れないという構成要素#1に効く制約が判明した。詳細は
+`docs/requirements.md` の「Dawn のカートセクションが app block を受け入れるか」
+「app block の設置とレンダリング」を参照。
+
+検証用ホストテーマ `noshi-app dev host` には、現状サイト共通のフッターに検証用ブロックが
+入ったままになっている（本来の置き場所はカートフッター）。
 
 <!-- 以降、作業のたびに日付付きで追記する -->
