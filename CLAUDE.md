@@ -1,5 +1,7 @@
 # chanoka のし・ギフト対応アプリ(副業ポートフォリオ第3弾)
 
+@AGENTS.md
+
 副業ポートフォリオ3件(本プロジェクト＋`portfolio-demo-store`＋`portfolio-booking-app`)を
 横断する方針・世界観の一貫性・公開ガードレールは `~/Coding/portfolio-mentor/CLAUDE.md` を
 参照。本ファイルは本プロジェクト固有の実装ルールを扱う。
@@ -75,9 +77,9 @@
 以下は依存関係を踏まえた着手順(前の項目が崩れると後ろの設計をやり直すため、
 飛ばさず順に進める)。
 
-1. **リスク6**: 開発ストアへ extension-only app をインストールする手順を確認する。
-   `shopify app init` でプロジェクトを起こし、`shopify app dev` で `chanoka-demo` に
-   接続できるところまで。ここが通らないと何も検証できない
+1. ~~**リスク6**: 開発ストアへ extension-only app をインストールする手順を確認する~~
+   → 2026-08-13 完了（`docs/requirements.md` の「検証結果」参照）。恒久インストール
+   （custom distribution）だけ未検証で残っている
 2. **リスク2**: のし・包装料用のダミー商品(在庫追跡なし・非公開)を `chanoka-demo` に作る
 3. **リスク1**: Cart Transform の expand operation を実装し、Dawn 標準のカート表示と
    競合しないか確認する。ここが崩れたら「確定事項」の料金設計から見直しになる

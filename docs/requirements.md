@@ -125,11 +125,8 @@ READMEにも明記する。
    更新する際の行の同一性の扱い
 4. Discount Function で「のし・包装料」のラインだけを100%割引の対象にする方法
 5. app-owned Metaobject を Theme App Extension（Liquid / フロント）側から読む方法
-6. 開発ストア `chanoka-demo` に custom distribution のアプリをインストールする手順。
-   なお第三者レビューで「開発ストアなら custom distribution は不要では」との指摘を受けたが、
-   公式ドキュメントに `Extension-only apps can only be installed with custom distribution.`
-   と明記されているため、extension-only を選ぶ限り選択の余地はないと判断している。
-   `shopify app dev` の開発時プレビューと恒久インストールの混同と見るが、実機で確認する
+6. ~~開発ストア `chanoka-demo` に custom distribution のアプリをインストールする手順。~~
+   **2026-08-13 検証済み（一部）。** 結果は下記「検証結果」を参照
 7. チェックアウト拡張のプラン境界（Plus限定の範囲）を着手時に公式ドキュメントで再確認する。
    Shopifyはこの手の境界を頻繁に見直すため、本ファイル記載時点の理解のまま進めない
 8. Functions の単体テストの実行方法。fixture の与え方と、CI に載せられるか
@@ -137,6 +134,35 @@ READMEにも明記する。
    公的な情報で確認する）と、Shopify 側で商品ごとに税率を分ける具体的な設定手順。
    **管理画面のメニュー名を記憶で書かない**
 10. Admin UI Extension から注文メタフィールドへ書き込む方法と、必要なアクセススコープ
+
+## 検証結果
+
+### リスク6: 開発ストアへのインストール（2026-08-13）
+
+**開発時プレビューと恒久インストールは別物であり、前者に custom distribution は要らない** —
+第三者レビューの指摘が正しかった。
+
+確認できたこと（Shopify CLI 4.6.1 / Node v24.12.0）:
+
+- `shopify app init --template none` で extension-only 相当のプロジェクトが作れる。
+  ただし `none` は**空ではない**。App Home（`admin.app.home.render`）・App Tools
+  （`admin.app.tools.data`）の2つの UI Extension と、サンプルの FAQ Metaobject・
+  商品メタフィールド定義が `shopify.app.toml` に入った状態で生成される
+- `shopify app dev --store chanoka-demo.myshopify.com` は**何の配布設定もしないまま通り**、
+  管理画面の「アプリ > インストール済み」に当該アプリが並ぶ。アクセススコープも
+  `Access scopes auto-granted` として自動付与される
+- ただしこれは Dev Console に「開発プレビューをクリーンアップ」と出る**一時的な状態**であり、
+  恒久インストールではない
+- 恒久インストールについては、公式ドキュメントの
+  `Extension-only apps can only be installed with custom distribution.` という記述を再確認した。
+  **実際に custom distribution を設定して入れ直すところまでは未検証**
+
+**未検証で残っている点**: `shopify app deploy` でバージョンを作り、Dev Dashboard で
+custom distribution を設定してインストールリンクから恒久インストールする経路。
+Shopify の配布形態の選択は**後から変更できない**ため、実行前に判断を確定させること。
+
+**派生タスク**: 生成された App Home / App Tools / FAQ Metaobject はテンプレートのデモ内容。
+本アプリの構成要素ではないため、実装に入る前に削除するか流用するかを決める。
 
 ## 公開情報のガードレール
 

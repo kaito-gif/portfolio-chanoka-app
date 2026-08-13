@@ -30,6 +30,12 @@
 ## 進捗
 
 2026-08-13: 実装範囲の確定、CLAUDE.md・docs/requirements.md の整備、git初期化・
-初回コミットまで完了。実装は未着手。
+初回コミットまで完了。
+
+2026-08-13: リスク6（開発ストアへのインストール）を検証。`shopify app init --template none`
+でプロジェクトを生成しリポジトリ直下へ配置、`shopify app dev` で `chanoka-demo` に接続して
+管理画面の「インストール済み」に出るところまで確認した。結果は `docs/requirements.md` の
+「検証結果」を参照。テンプレートが同梱するデモ内容（App Home / App Tools / FAQ Metaobject）は
+未整理のまま残している。
 
 <!-- 以降、作業のたびに日付付きで追記する -->
