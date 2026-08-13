@@ -22,3 +22,26 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+
+# 熨斗の表書き（御中元・御歳暮など）のマスタ。
+# 選択肢をコードに持たず、マーチャントが管理画面から増減できる形にするための定義。
+# access.admin = merchant_read_write … 管理画面からエントリーを編集させる
+# access.storefront = public_read     … カートページの入力ブロックから読む
+[metaobjects.app.noshi_title]
+name = "熨斗の表書き"
+description = "熨斗に印字する表書きの選択肢"
+display_name_field = "label"
+access.admin = "merchant_read_write"
+access.storefront = "public_read"
+capabilities.publishable = true
+
+[metaobjects.app.noshi_title.fields.label]
+name = "表書き"
+description = "熨斗に印字する文言（例: 御中元）"
+type = "single_line_text_field"
+required = true
+
+[metaobjects.app.noshi_title.fields.display_order]
+name = "並び順"
+description = "カートの選択肢に並べる順序。小さいほど先"
+type = "number_integer"

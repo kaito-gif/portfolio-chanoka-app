@@ -1,0 +1,36 @@
+{% comment %}
+  リスク5の検証用ブロック。app-owned Metaobject を Liquid から読めるかを確かめるための
+  最小実装であり、構成要素#1（のし入力ブロック）の完成形ではない。
+
+  型名の `app--410001276929--noshi_title` は `$app:noshi_title` の実体。
+  この数値がアプリ固有のIDで、Liquid 側では省略できないかを検証している。
+{% endcomment %}
+
+{% assign noshi_titles = metaobjects['app--410001276929--noshi_title'].values %}
+
+<div class="noshi-spike" style="border:1px solid #999;padding:1rem;margin:1rem 0">
+  <p>取得件数: {{ noshi_titles.size }}</p>
+
+  {% if noshi_titles.size > 0 %}
+    <ul>
+      {% for entry in noshi_titles %}
+        <li>
+          handle={{ entry.system.handle }}
+          / label(直)={{ entry.label }}
+          / label(.value)={{ entry.label.value }}
+          / order(.value)={{ entry.display_order.value }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>エントリーを取得できなかった</p>
+  {% endif %}
+</div>
+
+{% schema %}
+{
+  "name": "のし入力(検証用)",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}
