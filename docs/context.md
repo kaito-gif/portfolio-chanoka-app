@@ -35,7 +35,10 @@
 2026-08-13: リスク6（開発ストアへのインストール）を検証。`shopify app init --template none`
 でプロジェクトを生成しリポジトリ直下へ配置、`shopify app dev` で `chanoka-demo` に接続して
 管理画面の「インストール済み」に出るところまで確認した。結果は `docs/requirements.md` の
-「検証結果」を参照。テンプレートが同梱するデモ内容（App Home / App Tools / FAQ Metaobject）は
-未整理のまま残している。
+「検証結果」を参照。
+
+2026-08-13: テンプレートが同梱するデモ内容（App Home / App Tools / FAQ Metaobject）を
+すべて削除し、拡張0個の状態で `shopify app dev` が通ることを確認。判断の根拠と、
+この判断が依存している未検証点は `docs/requirements.md` の「テンプレート同梱物の扱い」を参照。
 
 <!-- 以降、作業のたびに日付付きで追記する -->

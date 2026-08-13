@@ -124,7 +124,11 @@ READMEにも明記する。
 3. カート上で line item properties を後から編集する経路。`/cart/change.js` で properties を
    更新する際の行の同一性の扱い
 4. Discount Function で「のし・包装料」のラインだけを100%割引の対象にする方法
-5. app-owned Metaobject を Theme App Extension（Liquid / フロント）側から読む方法
+5. app-owned Metaobject を Theme App Extension（Liquid / フロント）側から読む方法。
+   併せて、`access.admin = "merchant_read_write"` でマーチャントが標準の管理画面から
+   **エントリーを新規作成・削除できるか**を確認する（値の編集だけの可能性がある）。
+   ここが「編集のみ」なら表書きマスタ用の管理UIを別途作る必要があり、
+   「テンプレート同梱物の扱い」で下した App Home 削除の判断が覆る
 6. ~~開発ストア `chanoka-demo` に custom distribution のアプリをインストールする手順。~~
    **2026-08-13 検証済み（一部）。** 結果は下記「検証結果」を参照
 7. チェックアウト拡張のプラン境界（Plus限定の範囲）を着手時に公式ドキュメントで再確認する。
@@ -161,8 +165,33 @@ READMEにも明記する。
 custom distribution を設定してインストールリンクから恒久インストールする経路。
 Shopify の配布形態の選択は**後から変更できない**ため、実行前に判断を確定させること。
 
-**派生タスク**: 生成された App Home / App Tools / FAQ Metaobject はテンプレートのデモ内容。
-本アプリの構成要素ではないため、実装に入る前に削除するか流用するかを決める。
+### テンプレート同梱物の扱い（2026-08-13 決定）
+
+`shopify app init --template none` が同梱する App Home・App Tools・FAQ Metaobject は
+**すべて削除した**。判断の根拠:
+
+- **App Home**（`admin.app.home.render`、FAQ管理のデモ画面）… 構成要素#2「表書きマスタを
+  マーチャントが管理画面から増減できる」は、Metaobject 定義に
+  `access.admin = "merchant_read_write"` を書けば**標準の管理画面だけで満たせる見込み**の
+  ため、自前の管理UIは重複と判断した。管理画面での見せ場は構成要素#5（受注画面の熨斗カード）で
+  確保できる。**ただし下記の未検証点あり**
+- **App Tools**（`admin.app.tools.data`）… Shopify の AI アシスタント向けにツールを公開する
+  拡張。requirements.md の範囲外で、のし・ギフト対応の実装力の証明とも無関係。
+  `shopify.app.toml` の `[sidekick]` 節も併せて削除
+- **FAQ Metaobject / 商品メタフィールド定義** … デモ用のデータモデル。表書きマスタの定義に
+  置き換えるため削除。**書き方は本コミットの親 `a11711e` に残してある**ので、実装時は
+  そこを参照すればよい
+- 併せて `shared/`（FAQ用のモデルとGID変換）と `vite.config.ts`（存在しない `home`
+  ディレクトリを `root` に指定しており、App Home 削除後は完全に宙に浮く）も削除
+
+削除後に `shopify app dev` を再実行し、拡張が0個の状態でも
+`✅ Ready, watching for changes in your app` まで到達することを確認済み。
+
+**この判断が依存している未検証点（リスク5で必ず確認する）**:
+`access.admin = "merchant_read_write"` が、エントリーの**新規作成・削除**まで許すのか、
+既存エントリーの**値の編集**だけなのか。公式ドキュメントの表現は
+`merchants can both view and edit entries` で、この点があいまい。
+**編集しかできないなら App Home の削除判断は覆り、表書きマスタ用の管理UIが必要になる。**
 
 ## 公開情報のガードレール
 
