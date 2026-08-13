@@ -79,18 +79,22 @@
 - 管理画面のメニュー名・プラン制約・パッケージのバージョンを記憶で断定する。
   **Shopify はプラン境界を頻繁に見直すため、着手のたびに公式ドキュメントで裏取りする**
 
-## 現在地(2026-08-13 時点)
+## 現在地(2026-08-14 時点)
 
 **技術リスク10項目のうち6つ(1・2・4・5・6・9)が実機で潰れている。**
 重いもの(料金設計・税区分)は全部片付き、**確定事項の設計は崩れないことが確認済み**。
+実装フェーズ前の宿題のうち最優先だった**設定値の一元化も完了**した。
 
 動くもの:
 
 - `extensions/noshi-cart` … Theme App Extension。表書きのセレクトを描画する検証用ブロック
-- `extensions/noshi-fee` … Cart Transform。熨斗ありの行を expand してのし代・包装料を加算
-- `extensions/noshi-wrap-free` … Discount Function。一定金額以上で包装料相当を割引
+  (まだ選択を line item properties へ反映する送信ロジックは持たない。リスク3で扱う)
+- `extensions/noshi-fee` … Cart Transform。熨斗ありの行を expand してのし代・包装料を加算。
+  variant ID・単価は shop metafield `$app:noshi_settings` から読む
+- `extensions/noshi-wrap-free` … Discount Function。一定金額以上で包装料相当を割引。
+  単価・しきい値は同じ metafield を参照
 
-fixture テストは10件(4＋6)。**着手前に両方を走らせて緑を確認すること。**
+fixture テストは12件(5＋7)。**着手前に両方を走らせて緑を確認すること。**
 
 ## 次にやること
 
@@ -106,9 +110,8 @@ fixture テストは10件(4＋6)。**着手前に両方を走らせて緑を確�
 
 リスク検証の副産物として溜まっている。**どれも金額か仕様の食い違いに直結する。**
 
-1. **設定値の一元化**(最優先)。variant ID・のし代/包装料の単価・包装料無料のしきい値が
-   `noshi-fee` と `noshi-wrap-free` に**二重にハードコード**されている。片方だけ直すと
-   金額がずれる。アプリ側の設定(Metafield か Metaobject)へ寄せる
+1. ~~設定値の一元化~~ → 2026-08-14 完了。詳細は `docs/requirements.md` の
+   「設定値の一元化」を参照
 2. **アプリIDのハードコード**。`noshi-cart` の Liquid が `app--410001276929--noshi_title` を
    直書きしている。Liquid では `$app:` の糖衣が使えないため避けられないが、1箇所に閉じる
 3. **app block の置き場所**。今はサイト共通のフッターにある。本来はカートの

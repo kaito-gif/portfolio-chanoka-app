@@ -22,6 +22,16 @@
             }
           }
         ]
+      },
+      "shop": {
+        "noshiSettings": {
+          "jsonValue": {
+            "noshiFeeVariantId": "gid://shopify/ProductVariant/52828643590461",
+            "wrapFeeVariantId": "gid://shopify/ProductVariant/52828643655997",
+            "noshiFeeAmount": "100",
+            "wrapFeeAmount": "300"
+          }
+        }
       }
     },
     "output": {

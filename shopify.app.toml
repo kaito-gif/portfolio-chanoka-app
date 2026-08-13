@@ -45,3 +45,12 @@ required = true
 name = "並び順"
 description = "カートの選択肢に並べる順序。小さいほど先"
 type = "number_integer"
+
+# のし代・包装料の設定（variant ID・単価・包装料無料のしきい値）。
+# noshi-fee（Cart Transform）と noshi-wrap-free（Discount）の両方が
+# ここを参照する。片方だけ直して金額がずれる事故を防ぐための一元化。
+# マーチャントが管理画面から誤って書き換えられないよう access.admin は付けない。
+[shop.metafields.app.noshi_settings]
+name = "熨斗設定"
+description = "のし代・包装料のvariant ID、単価、包装料無料のしきい値（JSON）"
+type = "json"

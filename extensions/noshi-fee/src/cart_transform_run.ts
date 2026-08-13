@@ -6,18 +6,37 @@ import type {
 } from "../generated/api";
 
 /**
- * のし代・包装料のダミー商品の variant ID。
- *
- * TODO: ストアごとに値が違うため、ここに直接書いたままにはしない。
- * アプリ側の設定（Metafield か Metaobject）へ移し、入力クエリで読む。
- * リスク1の検証を通すための暫定措置。
+ * shop metafield `$app:noshi_settings`（shopify.app.toml で定義）の値の形。
+ * noshi-wrap-free（Discount Function）と同じ設定を共有する。
+ * variant ID・単価はストアごとに違うためコードに直書きしない。
  */
-const NOSHI_FEE_VARIANT_ID = "gid://shopify/ProductVariant/52828643590461";
-const WRAP_FEE_VARIANT_ID = "gid://shopify/ProductVariant/52828643655997";
+type NoshiSettings = {
+  noshiFeeVariantId: string;
+  wrapFeeVariantId: string;
+  noshiFeeAmount: string;
+  wrapFeeAmount: string;
+};
 
-/** のし代・包装料の単価。variant 側の価格と同じ値を明示的に与えている。 */
-const NOSHI_FEE_AMOUNT = "100";
-const WRAP_FEE_AMOUNT = "300";
+function readNoshiSettings(
+  input: CartTransformRunInput,
+): NoshiSettings | null {
+  const value = input.shop.noshiSettings?.jsonValue as
+    | Partial<NoshiSettings>
+    | null
+    | undefined;
+
+  if (
+    !value ||
+    typeof value.noshiFeeVariantId !== "string" ||
+    typeof value.wrapFeeVariantId !== "string" ||
+    typeof value.noshiFeeAmount !== "string" ||
+    typeof value.wrapFeeAmount !== "string"
+  ) {
+    return null;
+  }
+
+  return value as NoshiSettings;
+}
 
 const NO_CHANGES: CartTransformRunResult = {
   operations: [],
@@ -26,8 +45,15 @@ const NO_CHANGES: CartTransformRunResult = {
 export function cartTransformRun(
   input: CartTransformRunInput,
 ): CartTransformRunResult {
+  const settings = readNoshiSettings(input);
+  // 設定が未投入・壊れている場合は何もしない（blockOnFailure: false と同じ考え方で、
+  // カートは通す代わりに のし・包装料は加算しない）。
+  if (!settings) {
+    return NO_CHANGES;
+  }
+
   const operations = input.cart.lines
-    .map(buildExpandOperation)
+    .map((line) => buildExpandOperation(line, settings))
     .filter((operation): operation is Operation => operation !== null);
 
   return operations.length > 0 ? { operations } : NO_CHANGES;
@@ -35,6 +61,7 @@ export function cartTransformRun(
 
 function buildExpandOperation(
   line: CartTransformRunInput["cart"]["lines"][number],
+  settings: NoshiSettings,
 ): Operation | null {
   // 熨斗の指定がない行は触らない。
   const noshiTitle = line.noshiTitle?.value?.trim();
@@ -67,14 +94,18 @@ function buildExpandOperation(
       },
     },
     {
-      merchandiseId: NOSHI_FEE_VARIANT_ID,
+      merchandiseId: settings.noshiFeeVariantId,
       quantity: 1,
-      price: { adjustment: { fixedPricePerUnit: { amount: NOSHI_FEE_AMOUNT } } },
+      price: {
+        adjustment: { fixedPricePerUnit: { amount: settings.noshiFeeAmount } },
+      },
     },
     {
-      merchandiseId: WRAP_FEE_VARIANT_ID,
+      merchandiseId: settings.wrapFeeVariantId,
       quantity: 1,
-      price: { adjustment: { fixedPricePerUnit: { amount: WRAP_FEE_AMOUNT } } },
+      price: {
+        adjustment: { fixedPricePerUnit: { amount: settings.wrapFeeAmount } },
+      },
     },
   ];
 

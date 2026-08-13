@@ -1,4 +1,9 @@
 query CartTransformRunInput {
+  shop {
+    noshiSettings: metafield(namespace: "$app", key: "noshi_settings") {
+      jsonValue
+    }
+  }
   cart {
     lines {
       id

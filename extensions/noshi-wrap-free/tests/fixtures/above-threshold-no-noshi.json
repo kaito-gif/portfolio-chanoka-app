@@ -4,11 +4,35 @@
     "target": "cart.lines.discounts.generate.run",
     "input": {
       "cart": {
-        "cost": { "subtotalAmount": { "amount": "5000" } },
-        "lines": [{"id":"gid://shopify/CartLine/1","quantity":1,"noshiTitle":null}]
+        "cost": {
+          "subtotalAmount": {
+            "amount": "5000"
+          }
+        },
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/1",
+            "quantity": 1,
+            "noshiTitle": null
+          }
+        ]
       },
-      "discount": { "discountClasses": ["PRODUCT"] }
+      "discount": {
+        "discountClasses": [
+          "PRODUCT"
+        ]
+      },
+      "shop": {
+        "noshiSettings": {
+          "jsonValue": {
+            "wrapFeeAmount": "300",
+            "freeWrapThreshold": 3000
+          }
+        }
+      }
     },
-    "output": { "operations": [] }
+    "output": {
+      "operations": []
+    }
   }
 }

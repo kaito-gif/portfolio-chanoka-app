@@ -4,11 +4,66 @@
     "target": "cart.lines.discounts.generate.run",
     "input": {
       "cart": {
-        "cost": { "subtotalAmount": { "amount": "5000" } },
-        "lines": [{"id":"gid://shopify/CartLine/1","quantity":1,"noshiTitle":{"value":"御礼"}},{"id":"gid://shopify/CartLine/2","quantity":1,"noshiTitle":null}]
+        "cost": {
+          "subtotalAmount": {
+            "amount": "5000"
+          }
+        },
+        "lines": [
+          {
+            "id": "gid://shopify/CartLine/1",
+            "quantity": 1,
+            "noshiTitle": {
+              "value": "御礼"
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/2",
+            "quantity": 1,
+            "noshiTitle": null
+          }
+        ]
       },
-      "discount": { "discountClasses": ["PRODUCT"] }
+      "discount": {
+        "discountClasses": [
+          "PRODUCT"
+        ]
+      },
+      "shop": {
+        "noshiSettings": {
+          "jsonValue": {
+            "wrapFeeAmount": "300",
+            "freeWrapThreshold": 3000
+          }
+        }
+      }
     },
-    "output": { "operations": [{"productDiscountsAdd":{"candidates":[{"message":"包装料無料","targets":[{"cartLine":{"id":"gid://shopify/CartLine/1"}}],"value":{"fixedAmount":{"amount":300,"appliesToEachItem":true}}}],"selectionStrategy":"ALL"}}] }
+    "output": {
+      "operations": [
+        {
+          "productDiscountsAdd": {
+            "candidates": [
+              {
+                "message": "包装料無料",
+                "targets": [
+                  {
+                    "cartLine": {
+                      "id": "gid://shopify/CartLine/1"
+                    }
+                  }
+                ],
+                "value": {
+                  "fixedAmount": {
+                    "amount": 300,
+                    "appliesToEachItem": true
+                  }
+                }
+              }
+            ],
+            "selectionStrategy": "ALL"
+          }
+        }
+      ]
+    }
   }
 }

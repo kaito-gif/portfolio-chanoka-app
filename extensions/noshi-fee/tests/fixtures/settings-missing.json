@@ -9,7 +9,7 @@
             "id": "gid://shopify/CartLine/1",
             "quantity": 1,
             "noshiTitle": {
-              "value": "   "
+              "value": "御中元"
             },
             "merchandise": {
               "__typename": "ProductVariant",
@@ -24,14 +24,7 @@
         ]
       },
       "shop": {
-        "noshiSettings": {
-          "jsonValue": {
-            "noshiFeeVariantId": "gid://shopify/ProductVariant/52828643590461",
-            "wrapFeeVariantId": "gid://shopify/ProductVariant/52828643655997",
-            "noshiFeeAmount": "100",
-            "wrapFeeAmount": "300"
-          }
-        }
+        "noshiSettings": null
       }
     },
     "output": {

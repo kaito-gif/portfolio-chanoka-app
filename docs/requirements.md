@@ -386,8 +386,8 @@ Dawn baseline）を指定すると `templates/cart.json` を書き換えてし�
 
 **残っている実装上の宿題**:
 
-- variant ID と単価が `src/cart_transform_run.ts` にハードコードされている。
-  ストアごとに変わるため、アプリ側の設定（Metafield か Metaobject）へ移す
+- ~~variant ID と単価が `src/cart_transform_run.ts` にハードコードされている~~
+  → 2026-08-14 完了。下記「設定値の一元化」を参照
 - 属性キーは `表書き`（日本語）。line item properties としてカート・チェックアウトまで
   問題なく流れることは確認済み
 - `cartTransformCreate` は `blockOnFailure: false` で作成した。Function が落ちても
@@ -433,10 +433,9 @@ Discount API のスキーマにも `component` / `bundle` に相当する型は�
 **バンドル全体に按分される**。「包装料だけ無料」にはならず、茶葉の課税標準も下がる。
 詳細と実測値は下記「リスク9」を参照。
 
-**残っている実装上の宿題**: しきい値（¥3,000）と包装料の単価（¥300）が、
-Cart Transform 側と Discount 側の**2箇所に別々に定義されている**。
-片方だけ直すと金額がずれるため、アプリ側の設定へ一元化する。
-リスク1で挙げた variant ID の宿題と同じ場所で解決する。
+**残っている実装上の宿題**: ~~しきい値（¥3,000）と包装料の単価（¥300）が、
+Cart Transform 側と Discount 側の2箇所に別々に定義されている~~ → 2026-08-14 完了。
+下記「設定値の一元化」を参照。
 
 ### リスク9: 軽減税率（2026-08-13 調査。実機検証は未了）
 
@@ -535,6 +534,29 @@ Cart Transform で expand した通常商品には及ばないと解釈できる
 税込表示（`taxesIncluded: true`）にしたことで、ストアフロントの表示価格は
 **¥2,400 のまま変わらない**（内税¥178になる）。税抜のままだと ¥2,592 に見えてしまい、
 第1弾のデモストアが実質値上げされたように見えるため、税込にするのが正しい。
+
+### 設定値の一元化（2026-08-14）
+
+**variant ID・単価・しきい値を shop metafield `$app:noshi_settings`（type: json）へ一元化した。**
+`noshi-fee`（Cart Transform）と `noshi-wrap-free`（Discount）の両方が入力クエリで
+`shop { metafield(namespace: "$app", key: "noshi_settings") { jsonValue } }` を読み、
+片方だけ直して金額がずれる事故を構造的になくした。
+
+- 定義は `shopify.app.toml` の `[shop.metafields.app.noshi_settings]`。
+  マーチャントが管理画面から誤って書き換えないよう `access.admin` は付けていない
+- 値は JSON 1件にまとめている:
+  `{ noshiFeeVariantId, wrapFeeVariantId, noshiFeeAmount, wrapFeeAmount, freeWrapThreshold }`
+- 投入は Admin API の `metafieldsSet`（`ownerId` は shop の GID）。
+  開発ストアには実測用の値（のし代¥100・包装料¥300・しきい値¥3,000）を投入済み
+- 設定が未投入・壊れている場合、両 Function とも**何もしない**（`blockOnFailure: false`
+  と同じ考え方で、カートは通す代わりに のし・包装料は加算しない）。fixture テストに
+  `settings-missing.json` を追加して確認済み
+- 実機確認（2026-08-14）: 熨斗あり×1で合計¥2,800、熨斗あり×2で
+  小計¥5,600→割引¥600→合計¥5,000。いずれも一元化前と同じ結果が出ることを確認した
+
+**ハマりどころ**: Shopify CLI の `shopify app dev` が使う GraphiQL の内蔵プロキシは
+`/graphiql/graphql.json?key=<起動ログのkey>&api_version=<version>` が正しいパス。
+`/graphql.json` だけでは 404 になる。
 
 ## 公開情報のガードレール
 

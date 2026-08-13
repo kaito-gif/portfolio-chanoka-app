@@ -7,15 +7,31 @@ import {
 } from "../generated/api";
 
 /**
- * 包装料が無料になる小計のしきい値。
- *
- * TODO: variant ID や単価と同じく、アプリ側の設定へ移す。
- * リスク4の検証を通すための暫定措置。
+ * shop metafield `$app:noshi_settings`（shopify.app.toml で定義）の値の形。
+ * noshi-fee（Cart Transform）と同じ設定を共有する。
+ * しきい値・単価はストアごとに違うためコードに直書きしない。
  */
-const FREE_WRAP_THRESHOLD = 3000;
+type NoshiSettings = {
+  wrapFeeAmount: string;
+  freeWrapThreshold: number;
+};
 
-/** 包装料の単価。Cart Transform 側と同じ値を持たせている。 */
-const WRAP_FEE_AMOUNT = 300;
+function readNoshiSettings(input: CartInput): NoshiSettings | null {
+  const value = input.shop.noshiSettings?.jsonValue as
+    | Partial<NoshiSettings>
+    | null
+    | undefined;
+
+  if (
+    !value ||
+    typeof value.wrapFeeAmount !== "string" ||
+    typeof value.freeWrapThreshold !== "number"
+  ) {
+    return null;
+  }
+
+  return value as NoshiSettings;
+}
 
 const NO_CHANGES: CartLinesDiscountsGenerateRunResult = { operations: [] };
 
@@ -26,8 +42,14 @@ export function cartLinesDiscountsGenerateRun(
     return NO_CHANGES;
   }
 
+  const settings = readNoshiSettings(input);
+  // 設定が未投入・壊れている場合は割引を出さない（cart-transform 側と同じ考え方）。
+  if (!settings) {
+    return NO_CHANGES;
+  }
+
   const subtotal = Number(input.cart.cost.subtotalAmount.amount);
-  if (!(subtotal >= FREE_WRAP_THRESHOLD)) {
+  if (!(subtotal >= settings.freeWrapThreshold)) {
     return NO_CHANGES;
   }
 
@@ -41,7 +63,10 @@ export function cartLinesDiscountsGenerateRun(
       targets: [{ cartLine: { id: line.id } }],
       value: {
         // appliesToEachItem: true で、数量分の包装料をまとめて相殺する。
-        fixedAmount: { amount: WRAP_FEE_AMOUNT, appliesToEachItem: true },
+        fixedAmount: {
+          amount: Number(settings.wrapFeeAmount),
+          appliesToEachItem: true,
+        },
       },
     }));
 

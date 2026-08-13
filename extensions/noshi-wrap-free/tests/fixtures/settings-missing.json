@@ -6,7 +6,7 @@
       "cart": {
         "cost": {
           "subtotalAmount": {
-            "amount": "2800"
+            "amount": "5000"
           }
         },
         "lines": [
@@ -25,12 +25,7 @@
         ]
       },
       "shop": {
-        "noshiSettings": {
-          "jsonValue": {
-            "wrapFeeAmount": "300",
-            "freeWrapThreshold": 3000
-          }
-        }
+        "noshiSettings": null
       }
     },
     "output": {

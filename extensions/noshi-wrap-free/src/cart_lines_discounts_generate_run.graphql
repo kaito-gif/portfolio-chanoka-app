@@ -1,4 +1,9 @@
 query CartInput {
+  shop {
+    noshiSettings: metafield(namespace: "$app", key: "noshi_settings") {
+      jsonValue
+    }
+  }
   cart {
     cost {
       subtotalAmount {
