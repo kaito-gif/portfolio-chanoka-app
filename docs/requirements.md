@@ -596,6 +596,65 @@ Cart Transform で expand した通常商品には及ばないと解釈できる
 **未検証**: 空値の属性が、チェックアウトと Admin の注文詳細でも非表示になるか。
 Admin に「表書き: （空）」が出ると出荷担当が混乱するため、構成要素#5 の実装時に確認する。
 
+### リスク7: チェックアウト拡張のプラン境界（2026-08-14 調査。実機検証は未着手）
+
+**結論: 構成要素#7（Thank you ページでの贈答内容確認表示）は全プランで利用できる。
+Plus限定なのは「情報・配送・支払い」ステップの拡張だけで、Thank you ページは対象外。**
+requirements.md の構成要素表の記載（「Starter 以外の全プランで利用可」）は妥当だが、
+根拠を公式ドキュメントで裏取りした。
+
+公式ドキュメント（Checkout UI extensions 概要）の記述:
+
+> Shopify Plus: Checkout UI extensions for the information, shipping, and payment steps
+> are available only to stores on a Shopify Plus plan.
+
+Plus限定と明記されているのは `purchase.checkout.*` 系のターゲット（チェックアウトの
+情報・配送・支払いステップそのもの）。今回使う予定の `purchase.thank-you.*` 系
+ターゲットについては、ドキュメント内にPlus限定の記載が見当たらない
+（プラン制限の言及自体がない = 全プランで使える対象という扱い）。
+
+**副次的に判明した設計上の制約（フェーズ2着手時に効く）**:
+Thank you ページの拡張が使える `Order` API は `isFirstOrder` と `number` しか
+公開しておらず、**熨斗の表書き・名入れなど line item properties は取得できない**。
+チェックアウト拡張は Storefront API（`shopify:storefront` プロトコルの `fetch()`）
+にはアクセスできるが、**Admin GraphQL API への直接アクセスはできない**
+（Admin UI Extension とは異なり、direct API access の対象が Storefront API 限定）。
+本アプリは extension-only（自前サーバーを持たない）ため、熨斗情報を Thank you
+ページに出すには、Storefront API 経由で読める形にデータを持たせる設計が要る。
+フェーズ2着手時に構成要素#7の実現方式をここで再検討すること。
+
+**未検証**: 実際に `shopify app generate extension --template thank_you_ui`
+（または該当テンプレート）で scaffold して実機確認すること。プラン境界の再確認は
+ドキュメントレベルでの裏取りのみ。
+
+### リスク8: Functions の単体テストを CI に載せられるか（2026-08-14 調査。実機のCI実行は未着手）
+
+**結論: 載せられる。ただし2点、実際にワークフローを組むときに気をつけること。**
+`npm test`（`extensions/noshi-wrap-free`）は `@shopify/shopify-function-test-helpers`
+経由で内部的に `shopify app function build` を呼ぶ。これは **store/Partnerアカウントへの
+ログインを要求しない、ローカルの wasm コンパイル**である
+（GitHub Issue の実行ログにも OAuth 関連の処理は一切現れず、`shopify app function build`
+の `--help` にある `--auth-alias` / `--client-id` は他の `shopify app` サブコマンドと
+共通のグローバルフラグで、このコマンド自体が要求するものではない）。
+
+1. **初回ビルド時に javy / wasm-opt / trampoline バイナリをネットワーク経由でダウンロードする。**
+   `github.com`（javyのリリース）と `cdn.shopify.com`（wasmプラグイン）への外向き通信が
+   必要。**完全オフラインのCIランナーでは動かない**
+2. **Alpine（musl）ベースのコンテナだと trampoline バイナリが `ENOENT` で失敗する既知の不具合が
+   あった**（[Shopify/cli#6044](https://github.com/shopify/cli/issues/6044)、CLI 3.73〜3.84。
+   trampoline バイナリが glibc 依存で、musl の Alpine では動的リンカが無く実行できない
+   ことが原因。CLI 3.85.4 で修正され2025-10-10にクローズ済み）。
+   **CI ランナーは Ubuntu 系（`ubuntu-latest` 等）の glibc イメージを使う**か、
+   Alpine を使うなら `apk add --no-cache gcompat` を追加する。
+   本リポジトリの CLI は 4.6.1（`shopify version` で確認）で修正版より十分新しいが、
+   CI 側の `@shopify/cli` バージョンが古い node_modules キャッシュから来ないよう、
+   キャッシュ利用時は `package-lock.json` のバージョン変化を検知して再インストールする
+   通常の運用で足りる
+
+**未検証**: 実際に GitHub Actions のワークフローファイルを作り、`ubuntu-latest` 上で
+`(cd extensions/noshi-wrap-free && npm ci && npm test -- --run)` が緑になることを確認する。
+ワークフロー自体はこの調査結果を反映すればすぐ書けるはずだが、CI実行の実機確認はまだ。
+
 ### リスク10: Admin UI Extensionからの注文情報アクセス・書き込み（2026-08-14 調査。実機実装は未着手）
 
 **結論: 熨斗情報の「表示」はカート行の line item properties をそのまま読めばよいが、
