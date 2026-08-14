@@ -29,7 +29,7 @@
 
 ## 開発ストア `chanoka-demo` の現状（リポジトリに現れない状態）
 
-2026-08-13 時点。**これらはコードに含まれないため、リポジトリを読むだけでは分からない。**
+2026-08-14 時点。**これらはコードに含まれないため、リポジトリを読むだけでは分からない。**
 新しいセッションで実機を触る前にここを見ること。
 
 ### アプリ
@@ -39,13 +39,14 @@
 - インストールは `shopify app dev` の**開発プレビューのみ**。恒久インストールは未実施
 - 付与済みスコープ: `write_cart_transforms` / `write_discounts` / `write_products`
 
-### 商品・コレクション・Metaobject
+### 商品・コレクション・Metaobject・Metafield
 
 | 種別 | 内容 |
 |---|---|
 | ダミー商品 | のし代 variant `52828643590461`（¥100） / 包装料 variant `52828643655997`（¥300）。いずれも在庫追跡なし・配送不要・販売チャネル未公開 |
 | コレクション | 軽減税率対象(飲食料品) `554660430141`（日本茶6商品・手動・未公開） |
 | Metaobject | `app--410001276929--noshi_title` にエントリー7件（`ochugen` / `oseibo` / `oiwai` / `uchiiwai` / `orei` / `soshina` / `muji`） |
+| Shop Metafield | `$app:noshi_settings`（`gid://shopify/Metafield/46694357107005`、type: json）に、のし代・包装料の variant ID/単価/包装料無料のしきい値を投入済み（のし代¥100・包装料¥300・しきい値¥3,000）。`noshi-fee`・`noshi-wrap-free` の両 Function がここを参照する。詳細は `docs/requirements.md` の「設定値の一元化」を参照 |
 
 ### Function の登録（ストア側にオブジェクトが作られている）
 
@@ -59,13 +60,25 @@
 
 - live: `Dawn 15.5.0 baseline` `190188192061` … **第1弾の証明。触らない**
 - 検証用ホスト: `noshi-app dev host` `190518362429`（baseline の複製・未公開）
-  - **サイト共通のフッター**に検証用 app block が入ったまま（本来の置き場所はカートフッター）
+  - のし入力ブロックは **カートフッター**（`templates/cart.json` の `cart-footer` セクション、
+    `subtotal` より前）に配置済み（2026-08-14、宿題3完了）。サイト共通フッターからは外した
   - `shopify app dev` は必ず `--theme 190518362429` を付けて起動する
 
 ### 税設定
 
 基本税 日本 10% / 商品の優先適用 8%（軽減税率対象コレクション）/ 税込表示 ON。
 事業体は米国のまま。詳細は `docs/requirements.md` の「リスク9」。
+
+### 未解決の不具合（次のセッションでまず引き継ぐこと）
+
+**Cart Transform の `lineExpand` operation で展開された行は、`/cart/change.js` で
+line item properties を更新しても、カートページの表示（テキスト）が更新されなくなる。**
+金額は常に正しく再計算されるため課金には影響しないが、選んだ表書き・名入れ等の
+表示が古いまま固着する。原因は Cart Transform の expand そのものにあると切り分け済み
+（未公開テーマ・`shopify app dev` の実行有無・本アプリの JS はいずれも無関係）。
+アプリ側からの回避策は未発見。詳細・切り分けの過程は `docs/requirements.md` の
+「原因の切り分け」、Notion のナレッジ（会社用 DB_メモ一覧、種別「障害対応」、
+2026-08-14登録）を参照。
 
 ## 進捗
 
