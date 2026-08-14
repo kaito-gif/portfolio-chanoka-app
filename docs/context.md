@@ -76,16 +76,30 @@
 削除済み。詳細は `docs/requirements.md` の「決着: 選択肢2（expand廃止・独立行化）を採用」
 を参照。
 
-**残作業（未実施）**:
+**残作業は2026-08-14に両方完了した**（詳細は `docs/requirements.md` の
+「独立行化後に新たに判明した3つの罠」「独立行化後の実測」を参照）:
 
-1. 実機での通し確認8項目のやり直し（コード変更後まだ `chanoka-demo` で検証していない）
-2. 開発ストアに残る旧 Cart Transform（`gid://shopify/CartTransform/167641405`）を
-   `cartTransformDelete` で削除する。このセッションでは `shopify store auth` の
-   ブラウザ認可がタイムアウトし、ストアへの Admin 接続ができなかった
+1. 実機での通し確認8項目 → 完了。描画固着は再現せず、独立行化の対策が効いていることを確認
+2. 旧 Cart Transform（`gid://shopify/CartTransform/167641405`）の削除 → 確認したところ
+   既に存在しなかった（`noshi-fee` 拡張を削除した時点で自動的に消えていたとみられる）。
+   削除作業自体は不要だった
 
 なお shop metafield `$app:noshi_settings` は変更不要（`noshiFeeVariantId` /
 `wrapFeeVariantId` は独立行化前から既に投入済みのため。`noshiFeeAmount` /
 `wrapFeeAmount` は使われなくなったが残しておいても実害はない）。
+
+**実機再検証で新たに3つの罠が見つかり、対処済み**:
+
+- Liquid の `shop.metafields.app.noshi_settings` 短縮記法が値を解決せず、
+  namespace を `app--410001276929` で直書きする形に直した
+  （`extensions/noshi-cart/blocks/noshi_options.liquid`）
+- のし代・包装料ダミー商品が「オンラインストア」チャネル未公開だと `/cart/add.js` が
+  422 で失敗する。`publishablePublish` で両商品を公開し、`write_publications`
+  スコープを `shopify.app.toml` に追加した
+- `shopify app dev` 実行中でも、ブラウザで直接ストアの本番URLを開くと Theme App
+  Extension のアセットURLが古いバージョンを指したまま 404 になることがある。
+  `http://127.0.0.1:9293`（ローカルプロキシ）経由でアクセスすると解消する。
+  以後のカートページ検証はこちらを使うこと
 
 ## 進捗
 

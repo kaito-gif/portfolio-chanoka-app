@@ -90,43 +90,41 @@
 明示して送る**。省略すると数量が黙って1に落ちて商品が消える。行の指定は `line` ではなく
 `id`(行キー)を使う。属性は全置換なので表書き・名入れ・のし種別は常にまとめて送る。
 
-**カート描画固着の不具合は方針決着済み、コード実装も完了(2026-08-14)。ただし実機再検証は未実施**。
-原因は Cart Transform の expand(展開された行だけプロパティ表示が更新されない)。
-対策として **expand をやめ、のし代・包装料を独立したカート行にする**方式へ実装を切り替えた:
-`extensions/noshi-fee`(Cart Transform)を削除し、`noshi-cart.js` が `/cart/add.js` で
-fee行を直接追加・`reconcileFeeLines`で親行に追随・DOM非表示化まで実装済み。
-`noshi-wrap-free` も fee行を直接ターゲットする方式に変更し、リスク9の税額按分問題も
-同時に解消した。fixtureテスト(7件)は緑。**未検証なのは実機での通し確認8項目のやり直し**
-(コード変更後まだ `chanoka-demo` で再確認していない)。また、開発ストアに残る旧
-Cart Transformオブジェクト(`gid://shopify/CartTransform/167641405`)の削除も未実施
-(このセッションでは `shopify store auth` のOAuthがタイムアウトし、ストア接続の
-Admin操作ができなかった)。詳細は `docs/requirements.md` の「構成要素#1: のし入力ブロックの実装」
-「決着: 選択肢2(expand廃止・独立行化)を採用」を参照。
+**カート描画固着の不具合は解消を実機確認済み(2026-08-14)。** 原因は Cart Transform の
+expand(展開された行だけプロパティ表示が更新されない)。対策として **expand をやめ、
+のし代・包装料を独立したカート行にする**方式へ実装を切り替えた: `extensions/noshi-fee`
+(Cart Transform)を削除し、`noshi-cart.js` が `/cart/add.js` でfee行を直接追加・
+`reconcileFeeLines`で親行に追随・DOM非表示化まで実装済み。`noshi-wrap-free` も fee行を
+直接ターゲットする方式に変更し、リスク9の税額按分問題も同時に解消した。fixtureテスト
+(7件)は緑。**実機での通し確認8項目もすべて通過し、描画固着は再現しなかった。**
+旧Cart Transformオブジェクト(`gid://shopify/CartTransform/167641405`)は確認したところ
+既に存在せず(`noshi-fee`拡張削除時に自動消滅したとみられる)、削除作業は不要だった。
+詳細は `docs/requirements.md` の「構成要素#1: のし入力ブロックの実装」
+「独立行化後の実測(2026-08-14)」を参照。
+
+**実機再検証で新たに3つの罠を踏んで対処済み**(`docs/requirements.md`
+「独立行化後に新たに判明した3つの罠」に詳細):
+
+1. Liquid `shop.metafields.app.noshi_settings` の短縮記法は値を解決しない。
+   namespace `app--410001276929` を直書きする必要がある
+2. のし代・包装料ダミー商品は「オンラインストア」チャネルに公開していないと
+   `/cart/add.js` が422で失敗する。`write_publications` スコープを追加し公開した
+3. `shopify app dev` 実行中でも直接ストアURLを開くとTheme App Extensionのアセットが
+   古いバージョンを指して404になることがある。**検証は `http://127.0.0.1:9293`
+   経由で行うこと**(直接ストアURLは避ける)
 
 動くもの:
 
 - `extensions/noshi-cart` … Theme App Extension。カートフッターに行ごとの熨斗入力
   (表書き・名入れ・外のし/内のし)を出し、行ごとの「保存」ボタンで
-  line item properties へ反映する
-- `extensions/noshi-fee` … Cart Transform。熨斗ありの行を expand してのし代・包装料を加算。
-  variant ID・単価は shop metafield `$app:noshi_settings` から読む
-- `extensions/noshi-wrap-free` … Discount Function。一定金額以上で包装料相当を割引。
-  単価・しきい値は同じ metafield を参照
+  line item properties へ反映する。のし代・包装料は `/cart/add.js` で独立したカート行
+  として追加し、`reconcileFeeLines` で親行の数量・キー変更に追随させる
+- `extensions/noshi-wrap-free` … Discount Function。一定金額以上で包装料の行そのものを
+  100%割引。単価・しきい値は shop metafield `$app:noshi_settings` を参照
 
-fixture テストは12件(5＋7)。**着手前に両方を走らせて緑を確認すること。**
+fixture テストは7件(`noshi-wrap-free`)。**着手前に走らせて緑を確認すること。**
 
 ## 次にやること
-
-### 最優先: 独立行化の実機再検証と、開発ストアの後片付け
-
-1. `shopify app dev --store chanoka-demo.myshopify.com --theme 190518362429` で
-   実店舗に接続し、構成要素#1の通し確認8項目(`docs/requirements.md` 参照)をやり直す。
-   特に「プロパティ変更後の表示固着」が独立行化で本当に解消したかを最優先で確認する
-2. 旧 `noshi-fee` の Cart Transform(`gid://shopify/CartTransform/167641405`)を
-   `cartTransformDelete` で削除する。`shopify store auth --store chanoka-demo.myshopify.com`
-   のブラウザ認可が必要(このセッションではタイムアウトして未実施)
-3. 両方確認できたら、CLAUDE.md・`docs/context.md`・`docs/requirements.md` の
-   「未検証」表記を確定事項へ格上げする
 
 ### A. 残りの技術リスク(順不同・どれも軽い)
 
@@ -160,7 +158,6 @@ fixture テストは12件(5＋7)。**着手前に両方を走らせて緑を確�
    末尾の「未解決の不具合」は特に必ず読むこと(次にやることの最優先事項)
 2. テストを走らせて緑を確認する
    ```
-   (cd extensions/noshi-fee && npm test -- --run)
    (cd extensions/noshi-wrap-free && npm test -- --run)
    ```
 3. 実機を触るなら、**ホストテーマを必ず指定して**起動する
@@ -169,4 +166,7 @@ fixture テストは12件(5＋7)。**着手前に両方を走らせて緑を確�
    ```
    `--theme` を省くと live の第1弾テーマがホストに選ばれ、`templates/*.json` を
    書き換えてしまう
-4. 画面確認は `claude --chrome` で起動したセッションから行う
+4. 画面確認は `claude --chrome` で起動したセッションから行う。**カートページの検証は
+   `http://127.0.0.1:9293` 経由でアクセスする**(直接 `https://chanoka-demo.myshopify.com/...`
+   を開くとTheme App Extensionのアセットが古いバージョンを指して404になることがある。
+   2026-08-14実測、詳細は `docs/requirements.md` 参照)

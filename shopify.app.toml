@@ -18,8 +18,11 @@ embedded_app_direct_api_access = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-# write_cart_transforms は Cart Transform(expand)を廃止したため不要になった(2026-08-14)。
-scopes = "write_discounts,write_products"
+# write_publications は のし代・包装料ダミー商品をオンラインストアチャネルに公開するために追加した
+# (独立行化方式では /cart/add.js がオンラインストア未公開の商品を追加できないため。2026-08-14実測)。
+# write_cart_transforms は開発ストアに残る旧 CartTransform オブジェクト削除のため一時追加したが、
+# 確認したところ既に存在しなかった(noshi-fee拡張の削除時に自動で消えていたとみられる)ため撤去した。
+scopes = "write_discounts,write_products,write_publications"
 
 [auth]
 redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]

@@ -29,8 +29,13 @@
 {%- comment -%}
   metafield の variant ID は Admin API の GID(`gid://shopify/ProductVariant/12345`)。
   Liquid の `item.variant_id` は裸の数値なので、末尾セグメントだけ取り出して比較する。
+
+  `shop.metafields.app.noshi_settings` および `shop.metafields['$app:noshi_settings']` の
+  短縮記法は実機で検証したところ解決できなかった(2026-08-14、theme console で確認)。
+  namespace を `app--{app_id}` で直接指定する形に倒す(snippets/noshi-title-options.liquid の
+  Metaobject 参照と同じ理由・同じ書き方)。
 {%- endcomment -%}
-{%- assign noshi_settings = shop.metafields.app.noshi_settings.value -%}
+{%- assign noshi_settings = shop.metafields['app--410001276929']['noshi_settings'].value -%}
 {%- assign noshi_fee_variant_id = noshi_settings.noshiFeeVariantId | split: '/' | last | default: '' -%}
 {%- assign wrap_fee_variant_id = noshi_settings.wrapFeeVariantId | split: '/' | last | default: '' -%}
 
