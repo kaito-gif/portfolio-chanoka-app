@@ -90,10 +90,16 @@
 明示して送る**。省略すると数量が黙って1に落ちて商品が消える。行の指定は `line` ではなく
 `id`(行キー)を使う。属性は全置換なので表書き・名入れ・のし種別は常にまとめて送る。
 
+**未解決の不具合が1件ある**: プロパティ変更後、カートの描画HTMLが古い状態で固着する
+(金額は常に正しく、表書き等のテキスト表示だけが遅れる)。未公開テーマのプレビュー特有か
+どうかは未検証。**公開前に必ず決着させること。**
+詳細は `docs/requirements.md` の「構成要素#1: のし入力ブロックの実装」を参照。
+
 動くもの:
 
-- `extensions/noshi-cart` … Theme App Extension。表書きのセレクトを描画する検証用ブロック
-  (まだ選択を line item properties へ反映する送信ロジックは持たない。リスク3で扱う)
+- `extensions/noshi-cart` … Theme App Extension。カートフッターに行ごとの熨斗入力
+  (表書き・名入れ・外のし/内のし)を出し、行ごとの「保存」ボタンで
+  line item properties へ反映する
 - `extensions/noshi-fee` … Cart Transform。熨斗ありの行を expand してのし代・包装料を加算。
   variant ID・単価は shop metafield `$app:noshi_settings` から読む
 - `extensions/noshi-wrap-free` … Discount Function。一定金額以上で包装料相当を割引。
@@ -115,11 +121,11 @@ fixture テストは12件(5＋7)。**着手前に両方を走らせて緑を確�
 
 1. ~~設定値の一元化~~ → 2026-08-14 完了。詳細は `docs/requirements.md` の
    「設定値の一元化」を参照
-2. **アプリIDのハードコード**。`noshi-cart` の Liquid が `app--410001276929--noshi_title` を
-   直書きしている。Liquid では `$app:` の糖衣が使えないため避けられないが、1箇所に閉じる
-3. **app block の置き場所**。今はサイト共通のフッターにある。本来はカートの
-   `main-cart-footer`。なお `main-cart-items` は `@app` を受け付けないため、
-   **カートの各行の中には入れられない**(構成要素#1の設計に影響)
+2. ~~アプリIDのハードコード~~ → 2026-08-14 完了。
+   `snippets/noshi-title-options.liquid` 1ファイルだけが知っている状態にした
+3. ~~app block の置き場所~~ → 2026-08-14 完了。`templates/cart.json` の `cart-footer` へ
+   移し、サイト共通フッターからは外した。なお `main-cart-items` は `@app` を
+   受け付けないため、**カートの各行の中には入れられない**(この制約は残る)
 4. ~~仕様の食い違い(構成要素#6)~~ → 2026-08-14 決定。**包装料のみ無料**に寄せ、
    requirements.md を修正済み
 5. **税額の按分**。包装料無料の割引は税務上バンドル全体に按分される(実測済み)。

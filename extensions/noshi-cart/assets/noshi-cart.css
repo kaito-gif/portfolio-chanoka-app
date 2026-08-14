@@ -1,0 +1,154 @@
+/*
+ * のし入力ブロックの見た目。
+ * テーマ側のCSSを一切上書きしないよう、セレクタは .noshi-cart 配下に閉じている。
+ * 色・フォントはテーマの変数を継承させ、Dawn以外に置いても浮かないようにする。
+ */
+
+.noshi-cart {
+  margin: 2.4rem 0;
+  padding: 2rem;
+  border: 0.1rem solid rgba(var(--color-foreground, 18 18 18), 0.15);
+  border-radius: 0.4rem;
+}
+
+.noshi-cart__heading {
+  margin: 0 0 1.6rem;
+  font-size: 1.6rem;
+  letter-spacing: 0.05rem;
+}
+
+.noshi-cart__empty {
+  margin: 0;
+  opacity: 0.7;
+}
+
+.noshi-cart__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.noshi-cart__item + .noshi-cart__item {
+  margin-top: 1.6rem;
+  padding-top: 1.6rem;
+  border-top: 0.1rem solid rgba(var(--color-foreground, 18 18 18), 0.1);
+}
+
+.noshi-cart__product {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-items: baseline;
+  margin-bottom: 0.8rem;
+}
+
+.noshi-cart__product-title {
+  font-weight: 600;
+}
+
+.noshi-cart__product-variant,
+.noshi-cart__product-qty {
+  font-size: 1.3rem;
+  opacity: 0.7;
+}
+
+.noshi-cart__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  cursor: pointer;
+}
+
+.noshi-cart__fields {
+  margin-top: 1.2rem;
+  padding-left: 2.4rem;
+  display: grid;
+  gap: 1.2rem;
+}
+
+.noshi-cart__fields[hidden] {
+  display: none;
+}
+
+.noshi-cart__note {
+  margin: 0;
+  font-size: 1.3rem;
+  opacity: 0.7;
+}
+
+.noshi-cart__field {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.noshi-cart__field label,
+.noshi-cart__field legend {
+  font-size: 1.3rem;
+  padding: 0;
+}
+
+.noshi-cart__field select,
+.noshi-cart__field input[type='text'] {
+  max-width: 32rem;
+  padding: 0.8rem;
+  font-size: 1.4rem;
+  border: 0.1rem solid rgba(var(--color-foreground, 18 18 18), 0.3);
+  border-radius: 0.2rem;
+  background-color: transparent;
+  color: inherit;
+}
+
+.noshi-cart__field--radio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.6rem;
+}
+
+.noshi-cart__radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.noshi-cart__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 1.2rem;
+  padding-left: 2.4rem;
+}
+
+.noshi-cart__save {
+  padding: 0.8rem 1.6rem;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+/* 未変更のうちは押せない。押し忘れとの区別が付くよう見た目でも落とす。 */
+.noshi-cart__save:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 送信中は操作できなくなる。無反応に見えないよう視覚的にも落とす。 */
+.noshi-cart__item input:disabled,
+.noshi-cart__item select:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.noshi-cart__status:empty {
+  display: none;
+}
+
+.noshi-cart__status {
+  margin: 0.8rem 0 0;
+  font-size: 1.3rem;
+  color: rgb(var(--color-error, 200 30 30));
+}

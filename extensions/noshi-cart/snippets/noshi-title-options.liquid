@@ -1,0 +1,34 @@
+{% comment %}
+  表書き(御中元・御歳暮など)の <option> を出力する。
+
+  ■ このスニペットが存在する理由
+  型名の `app--410001276929--noshi_title` は `$app:noshi_title` の実体で、
+  末尾の数値はこのアプリのID。Liquid では `$app:` の糖衣が使えず
+  (`metaobjects['$app:noshi_title']` は Unknown object エラーになる)、
+  アプリIDを書かないと型を解決できない。
+  リポジトリ全体でこの値を知っているのは**このファイルだけ**にしてある。
+  アプリを作り直したときはここ1箇所を直せばよい。
+
+  ■ sort が必須である理由
+  `.values` の既定の並びは登録順ではない(最後に作ったエントリーが先頭に来る)。
+  `display_order` で明示的に並べ替えて初めて意図した順序になる。
+
+  ■ 「熨斗なし」の選択肢を持たない理由
+  熨斗の要否は行ごとのチェックボックスが持つ。ここに「熨斗なし」を混ぜると
+  同じ意味の操作が2箇所に出て、どちらが正か分からなくなる。
+
+  引数:
+    selected … 現在選ばれている表書き。空なら placeholder が選択される
+{% endcomment %}
+
+{%- assign noshi_titles = metaobjects['app--410001276929--noshi_title'].values | sort: 'display_order' -%}
+
+<option value="" disabled {% if selected == blank %}selected{% endif %}>
+  {{ 'noshi.title_placeholder' | t }}
+</option>
+
+{%- for entry in noshi_titles -%}
+  <option value="{{ entry.label | escape }}" {% if selected == entry.label %}selected{% endif %}>
+    {{ entry.label }}
+  </option>
+{%- endfor -%}

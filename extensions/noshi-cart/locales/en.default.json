@@ -1,1 +1,19 @@
-{}
+{
+  "noshi": {
+    "heading": "Noshi (gift wrapping) options",
+    "cart_empty": "Your cart is empty.",
+    "enable": "Add noshi",
+    "quantity": "Qty {{ qty }}",
+    "same_for_all": "The same noshi applies to all {{ qty }} of this item.",
+    "title_label": "Occasion",
+    "title_placeholder": "Please select",
+    "name_label": "Name to print",
+    "name_placeholder": "e.g. Yamada",
+    "type_label": "Noshi placement",
+    "type_outer": "Outside the wrapping",
+    "type_inner": "Inside the wrapping",
+    "save": "Save noshi for this item",
+    "error_select_title": "Please select an occasion.",
+    "error_save_failed": "We couldn't update your cart. Please try again shortly."
+  }
+}

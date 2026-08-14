@@ -1,33 +1,139 @@
 {% comment %}
-  リスク5の検証用ブロック。構成要素#1（のし入力ブロック）の完成形ではない。
+  構成要素#1「のし入力ブロック」。カートページの各商品に熨斗を指定させる。
 
-  型名 `app--410001276929--noshi_title` は `$app:noshi_title` の実体。
-  Liquid では `$app:` の糖衣が使えず、アプリIDを書かないと解決できない
-  （`metaobjects['$app:noshi_title']` は Unknown object になる）。
+  ■ なぜカートの「行の中」ではなくフッターに置いてあるのか
+  Dawn の `sections/main-cart-items.liquid` は schema に `blocks` を持たず、
+  app block を受け付けない。テーマを書き換えれば各行に差し込めるが、それは
+  本アプリの存在意義(テーマを書き換えずに機能を足す)を壊す。
+  そのため `main-cart-footer` に1ブロックだけ置き、行ごとの入力をここに並べる。
 
-  `.values` の既定の並びは登録順ではないため、`display_order` での明示的な
-  ソートが必須。
+  ■ data-line-key / data-quantity を持たせている理由
+  更新は `/cart/change.js` で行うが、実測(リスク3)で次の2点が分かっている。
+    * `line` の番号は「後から追加した行が先頭」で追加順と一致しない
+      → 行の指定は `key` で行う
+    * `properties` を送るときに `quantity` を省略すると数量が黙って 1 に落ちる
+      → 現在の数量を必ず添えて送る
+  JS 側がこの2つを使うため、行ごとに data 属性として持たせている。
 {% endcomment %}
 
-{% assign noshi_titles = metaobjects['app--410001276929--noshi_title'].values | sort: 'display_order' %}
+{{ 'noshi-cart.css' | asset_url | stylesheet_tag }}
 
-<div class="noshi-options">
-  {% if noshi_titles.size > 0 %}
-    <label for="noshi-title">表書き</label>
-    <select id="noshi-title" name="properties[表書き]">
-      <option value="">熨斗なし</option>
-      {% for entry in noshi_titles %}
-        <option value="{{ entry.label }}">{{ entry.label }}</option>
-      {% endfor %}
-    </select>
-  {% else %}
-    <p>表書きが登録されていません。</p>
-  {% endif %}
+<div class="noshi-cart" data-noshi-root>
+  <h2 class="noshi-cart__heading">{{ 'noshi.heading' | t }}</h2>
+
+  {%- if cart.item_count == 0 -%}
+    <p class="noshi-cart__empty">{{ 'noshi.cart_empty' | t }}</p>
+  {%- else -%}
+    <ul class="noshi-cart__list" role="list">
+      {%- for item in cart.items -%}
+        {%- assign noshi_title = item.properties['表書き'] -%}
+        {%- assign noshi_name = item.properties['名入れ'] -%}
+        {%- assign noshi_type = item.properties['のし種別'] -%}
+        {%- assign uid = block.id | append: '-' | append: forloop.index -%}
+
+        <li
+          class="noshi-cart__item"
+          data-noshi-line
+          data-line-key="{{ item.key }}"
+          data-quantity="{{ item.quantity }}"
+          data-message-select-title="{{ 'noshi.error_select_title' | t | escape }}"
+          data-message-save-failed="{{ 'noshi.error_save_failed' | t | escape }}"
+        >
+          <div class="noshi-cart__product">
+            <span class="noshi-cart__product-title">{{ item.product.title }}</span>
+            {%- unless item.product.has_only_default_variant -%}
+              <span class="noshi-cart__product-variant">{{ item.variant.title }}</span>
+            {%- endunless -%}
+            <span class="noshi-cart__product-qty">{{ 'noshi.quantity' | t: qty: item.quantity }}</span>
+          </div>
+
+          <label class="noshi-cart__toggle">
+            <input
+              type="checkbox"
+              data-noshi-enabled
+              {% if noshi_title != blank %}checked{% endif %}
+            >
+            <span>{{ 'noshi.enable' | t }}</span>
+          </label>
+
+          <div class="noshi-cart__fields" data-noshi-fields {% if noshi_title == blank %}hidden{% endif %}>
+            {%- if item.quantity > 1 -%}
+              <p class="noshi-cart__note">{{ 'noshi.same_for_all' | t: qty: item.quantity }}</p>
+            {%- endif -%}
+
+            <div class="noshi-cart__field">
+              <label for="noshi-title-{{ uid }}">{{ 'noshi.title_label' | t }}</label>
+              <select id="noshi-title-{{ uid }}" data-noshi-field="title">
+                {% render 'noshi-title-options', selected: noshi_title %}
+              </select>
+            </div>
+
+            <div class="noshi-cart__field">
+              <label for="noshi-name-{{ uid }}">{{ 'noshi.name_label' | t }}</label>
+              <input
+                id="noshi-name-{{ uid }}"
+                type="text"
+                data-noshi-field="name"
+                value="{{ noshi_name | escape }}"
+                maxlength="40"
+                placeholder="{{ 'noshi.name_placeholder' | t }}"
+              >
+            </div>
+
+            {% comment %}
+              value は「外のし」「内のし」に固定する。ここに翻訳を入れると、
+              ストアの言語を切り替えたときに保存済みの値と一致しなくなり、
+              受注側(構成要素#5)が読む印字用データの表記も揺れる。
+              翻訳するのは画面に出すラベルだけにとどめる。
+            {% endcomment %}
+            <fieldset class="noshi-cart__field noshi-cart__field--radio">
+              <legend>{{ 'noshi.type_label' | t }}</legend>
+              <label class="noshi-cart__radio">
+                <input
+                  type="radio"
+                  name="noshi-type-{{ uid }}"
+                  data-noshi-field="type"
+                  value="外のし"
+                  {% if noshi_type == '内のし' %}{% else %}checked{% endif %}
+                >
+                <span>{{ 'noshi.type_outer' | t }}</span>
+              </label>
+              <label class="noshi-cart__radio">
+                <input
+                  type="radio"
+                  name="noshi-type-{{ uid }}"
+                  data-noshi-field="type"
+                  value="内のし"
+                  {% if noshi_type == '内のし' %}checked{% endif %}
+                >
+                <span>{{ 'noshi.type_inner' | t }}</span>
+              </label>
+            </fieldset>
+          </div>
+
+          {% comment %}
+            保存はこのボタンでまとめて1回だけ行う。変更のたびに送らないのは、
+            properties を変えた直後はサーバーの描画HTMLが古い値を返し、
+            画面を正しくするには実ナビゲーションが要るため(assets/noshi-cart.js の冒頭参照)。
+            そのため保存は「押したときに1回、そのあと再読み込み」に寄せている。
+          {% endcomment %}
+          <div class="noshi-cart__actions">
+            <button type="button" class="button noshi-cart__save" data-noshi-save disabled>
+              {{ 'noshi.save' | t }}
+            </button>
+            <p class="noshi-cart__status" data-noshi-status role="status" aria-live="polite"></p>
+          </div>
+        </li>
+      {%- endfor -%}
+    </ul>
+  {%- endif -%}
 </div>
+
+<script src="{{ 'noshi-cart.js' | asset_url }}" defer></script>
 
 {% schema %}
 {
-  "name": "のし入力(検証用)",
+  "name": "のし入力",
   "target": "section",
   "settings": []
 }

@@ -1,0 +1,19 @@
+{
+  "noshi": {
+    "heading": "熨斗（のし）のご指定",
+    "cart_empty": "カートに商品がありません。",
+    "enable": "熨斗をつける",
+    "quantity": "数量 {{ qty }}",
+    "same_for_all": "この商品 {{ qty }} 点すべてに同じ熨斗が付きます。",
+    "title_label": "表書き",
+    "title_placeholder": "選択してください",
+    "name_label": "名入れ",
+    "name_placeholder": "例: 山田",
+    "type_label": "のしの種類",
+    "type_outer": "外のし",
+    "type_inner": "内のし",
+    "save": "この商品の熨斗を保存",
+    "error_select_title": "表書きを選択してください。",
+    "error_save_failed": "カートを更新できませんでした。時間をおいて再度お試しください。"
+  }
+}
