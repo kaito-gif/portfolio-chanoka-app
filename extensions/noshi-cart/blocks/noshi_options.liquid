@@ -35,6 +35,8 @@
           class="noshi-cart__item"
           data-noshi-line
           data-line-key="{{ item.key }}"
+          data-line-index="{{ forloop.index0 }}"
+          data-variant-id="{{ item.variant_id }}"
           data-quantity="{{ item.quantity }}"
           data-message-select-title="{{ 'noshi.error_select_title' | t | escape }}"
           data-message-save-failed="{{ 'noshi.error_save_failed' | t | escape }}"

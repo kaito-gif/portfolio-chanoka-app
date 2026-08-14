@@ -78,14 +78,44 @@
   }
 
   /*
+   * 送信対象の行をサーバー側のカートから特定する。
+   *
+   * 第一候補は行キー。ただし**キーだけに頼ってはいけない**。
+   * 属性を変えると行キーが変わるうえ、このストアでは属性変更後の描画HTMLが
+   * 変更前の状態で返ることがあり(下の「なぜ保存後に再読み込みするのか」参照)、
+   * その場合ブロックが持つ data-line-key は実在しない古いキーになる。
+   * キー照合だけだと「行が見つからない」と誤判定し、保存が黙って不発になる。
+   *
+   * そこで行の並び順(描画時の index)と variant ID を突き合わせて拾い直す。
+   * 本ブロックは cart.items をそのままの順で描画しているため、
+   * index と variant が一致すれば同じ行とみなしてよい。
+   * variant が食い違うときはカートの中身自体が変わっているので拾わない。
+   */
+  function resolveLine(cart, line) {
+    var key = line.dataset.lineKey;
+    for (var i = 0; i < cart.items.length; i++) {
+      if (cart.items[i].key === key) return cart.items[i];
+    }
+
+    var index = parseInt(line.dataset.lineIndex, 10);
+    var variantId = line.dataset.variantId;
+    var candidate = cart.items[index];
+    if (candidate && String(candidate.variant_id) === String(variantId)) {
+      return candidate;
+    }
+
+    return null;
+  }
+
+  /*
    * 数量は data-quantity ではなく、送信直前に /cart.js から取り直す。
    * Dawn の数量±ボタンは本ブロックの外側だけを描き替えるため、
    * data-quantity は簡単に古くなる。古い数量を properties と一緒に送ると
    * その値で上書きされ、数量が巻き戻る。
    */
   function save(line) {
-    var key = line.dataset.lineKey;
-    if (!key) return;
+    /* 行の特定は resolveLine が行う。ここは描画が壊れていないことの最低限の確認。 */
+    if (!line.dataset.lineKey) return;
 
     var fields = readFields(line);
 
@@ -108,15 +138,9 @@
         return response.json();
       })
       .then(function (cart) {
-        var current = null;
-        for (var i = 0; i < cart.items.length; i++) {
-          if (cart.items[i].key === key) {
-            current = cart.items[i];
-            break;
-          }
-        }
+        var current = resolveLine(cart, line);
 
-        /* 別タブや戻る操作でカートが変わっていた場合。古い行に書きに行かない。 */
+        /* 行を特定できないときだけ諦める(別タブでカートを空にした等)。 */
         if (!current) {
           window.location.reload();
           return null;
@@ -126,7 +150,8 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({
-            id: key,
+            /* ブロックが持つキーではなく、サーバー側で実在が確認できたキーを使う。 */
+            id: current.key,
             quantity: current.quantity, // 省略すると数量が1に落ちる
             properties: properties,
           }),
