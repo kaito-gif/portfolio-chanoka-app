@@ -596,6 +596,58 @@ Cart Transform で expand した通常商品には及ばないと解釈できる
 **未検証**: 空値の属性が、チェックアウトと Admin の注文詳細でも非表示になるか。
 Admin に「表書き: （空）」が出ると出荷担当が混乱するため、構成要素#5 の実装時に確認する。
 
+### リスク10: Admin UI Extensionからの注文情報アクセス・書き込み（2026-08-14 調査。実機実装は未着手）
+
+**結論: 熨斗情報の「表示」はカート行の line item properties をそのまま読めばよいが、
+「訂正」は line item 側を書き換えることができない。訂正値は app 独自の Order メタフィールドに
+別途保存する設計にする必要がある。** 公式ドキュメント（Admin UI Extensions / Admin GraphQL API）で
+確認した。実機での extension scaffold・実装はまだ行っていない。
+
+#### データの取得: `admin.order-details.block.render` の `data` は注文のIDしか渡さない
+
+`BlockExtensionApi.data` は「現在表示・選択中のリソースID の配列」であり、注文の
+line item や属性そのものは含まれない。表書き・名入れ・のし種別を表示するには、
+`data` から注文の GID を取り、**Standard API の `query()`（Direct API Access。
+GraphQL Admin API への `fetch()` は自動的に認証される）で改めて注文を取得する**必要がある。
+読みたいフィールドは `Order.lineItems.customAttributes`（cart line item properties は
+注文になるとこの名前になる）。
+
+#### 書き込み: line item の `customAttributes` を編集する mutation は存在しない
+
+`orderUpdate` mutation の `OrderInput.customAttributes` は **注文レベル**
+（`Order.customAttributes`）を上書きするフィールドで、`LineItem.customAttributes`
+（各行の熨斗情報）を編集する経路ではない。Admin GraphQL API を横断して調べたが、
+line item の custom attributes をチェックアウト後に書き換える mutation は見当たらなかった
+（顧客がカートで入力した内容は注文として確定した時点で凍結される、という一般的な
+Shopify の設計と整合する）。
+
+**帰結: 出荷担当による「訂正」は、確定済みの line item properties を上書きするのではなく、
+app 独自の Order メタフィールド（例: `$app:noshi_correction`）に訂正後の値を追加で持たせ、
+Admin UI Extension 側は「元の入力」と「訂正後の値」を両方表示する設計にする。**
+元データを消さずに訂正の記録を残せるという利点もある。
+
+#### 書き込みに必要なスコープ
+
+- Order を owner とする metafield を書くには `metafieldsSet` mutation を使う。
+  Order owner への書き込みには **`write_orders` スコープ**が要る
+  （`read_orders`/`write_orders` は Order owner の metafield 読み書き権限も兼ねる。
+  公式ドキュメントで個別の narrower scope は確認できなかった）
+- Direct API Access は既定で **online access mode**。本アプリの `shopify.app.toml` は
+  `[access.admin] direct_api_mode = "online"` / `embedded_app_direct_api_access = true`
+  を既に設定済みのため、追加設定は不要。`scopes` に `write_orders` を追加するだけでよい
+- **60日より前の注文は既定でAdmin GraphQL APIから見えない。** 過去の注文を読むには
+  `read_all_orders` スコープが追加で必要（`read_orders`/`write_orders` と併用）。
+  App Store 提出時は Shopify の審査で用途を問われる可能性があるスコープなので、
+  実装時に「直近の注文だけで足りるか」を確認してから要否を判断する
+
+#### 未検証（次の実装フェーズで行うこと）
+
+- `shopify app generate extension --template admin_block` で実際に scaffold し、
+  `query()` で注文の line item properties を取得できるか実機確認
+- `metafieldsSet` で Order メタフィールドへの書き込みが通るか実機確認
+- 空値の属性（リスク3で保留した「Admin に『表書き: （空）』が出ないか」）を
+  実際の注文詳細画面で確認する
+
 ### 構成要素#1: のし入力ブロックの実装（2026-08-14）
 
 `extensions/noshi-cart` を検証用ブロックから作り込み、カートフッターへ移設した。
