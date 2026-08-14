@@ -18,7 +18,8 @@ embedded_app_direct_api_access = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_cart_transforms,write_discounts,write_products"
+# write_cart_transforms は Cart Transform(expand)を廃止したため不要になった(2026-08-14)。
+scopes = "write_discounts,write_products"
 
 [auth]
 redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
@@ -46,11 +47,16 @@ name = "並び順"
 description = "カートの選択肢に並べる順序。小さいほど先"
 type = "number_integer"
 
-# のし代・包装料の設定（variant ID・単価・包装料無料のしきい値）。
-# noshi-fee（Cart Transform）と noshi-wrap-free（Discount）の両方が
-# ここを参照する。片方だけ直して金額がずれる事故を防ぐための一元化。
+# のし代・包装料の設定（variant ID・包装料無料のしきい値）。
+# noshi-cart（Theme App Extension）と noshi-wrap-free（Discount）の両方が
+# ここを参照する。片方だけ直して variant ID やしきい値がずれる事故を防ぐための一元化。
+# 単価そのものは 2026-08-14 の設計変更（Cart Transform expand の廃止）以降、
+# ダミー商品（のし代・包装料）の Admin 上の variant 価格が正になった。この
+# metafield にはもう単価を持たせない（noshiFeeAmount / wrapFeeAmount は廃止）。
 # マーチャントが管理画面から誤って書き換えられないよう access.admin は付けない。
+# access.storefront = public_read … カートページのブロック・JS から variant ID を読む
 [shop.metafields.app.noshi_settings]
 name = "熨斗設定"
-description = "のし代・包装料のvariant ID、単価、包装料無料のしきい値（JSON）"
+description = "のし代・包装料のvariant ID、包装料無料のしきい値（JSON）"
 type = "json"
+access.storefront = "public_read"

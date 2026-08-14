@@ -13,8 +13,25 @@
           {
             "id": "gid://shopify/CartLine/1",
             "quantity": 2,
-            "noshiTitle": {
-              "value": "御中元"
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "id": "gid://shopify/ProductVariant/1"
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/2",
+            "quantity": 2,
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "id": "gid://shopify/ProductVariant/52828643590461"
+            }
+          },
+          {
+            "id": "gid://shopify/CartLine/3",
+            "quantity": 2,
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "id": "gid://shopify/ProductVariant/52828643655997"
             }
           }
         ]
@@ -27,7 +44,7 @@
       "shop": {
         "noshiSettings": {
           "jsonValue": {
-            "wrapFeeAmount": "300",
+            "wrapFeeVariantId": "gid://shopify/ProductVariant/52828643655997",
             "freeWrapThreshold": 3000
           }
         }
@@ -43,14 +60,13 @@
                 "targets": [
                   {
                     "cartLine": {
-                      "id": "gid://shopify/CartLine/1"
+                      "id": "gid://shopify/CartLine/3"
                     }
                   }
                 ],
                 "value": {
-                  "fixedAmount": {
-                    "amount": 300,
-                    "appliesToEachItem": true
+                  "percentage": {
+                    "value": 100
                   }
                 }
               }

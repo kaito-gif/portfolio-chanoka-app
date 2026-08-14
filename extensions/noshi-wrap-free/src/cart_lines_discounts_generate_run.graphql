@@ -13,8 +13,11 @@ query CartInput {
     lines {
       id
       quantity
-      noshiTitle: attribute(key: "表書き") {
-        value
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+        }
       }
     }
   }

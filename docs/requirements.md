@@ -54,7 +54,7 @@
 | 1 | のし入力ブロック | Theme App Extension（App Block） | カート内の各行に「熨斗をつける」トグル。展開すると 表書き / 名入れ / 外のし・内のし を入力 |
 | 2 | 表書きのマスタ管理 | Metaobject | 御中元・御歳暮・御祝・内祝・御礼・粗品・無地熨斗などをマーチャントが管理画面から増減できる。ハードコードしない |
 | 3 | 入力値の保持 | cart line attributes（line item properties） | 注文まで自動で引き継がれる |
-| 4 | のし・包装料の加算 | Cart Transform Function（expand operation） | 熨斗ありの行を expand し、のし・包装料のコンポーネントを追加する。課税設定・税込表示の整合を含む |
+| 4 | のし・包装料の加算 | `noshi-cart`（Theme App Extension）が `/cart/add.js` で独立行として追加 | 熨斗ありの行に対応するのし代・包装料を通常のカート行として追加する。**2026-08-14、Cart Transform expand から変更**（「構成要素#1: のし入力ブロックの実装」の「決着」参照）。課税設定・税込表示の整合を含む |
 | 5 | 受注画面での熨斗確認 | Admin UI Extension（`admin.order-details.block.render`） | 注文詳細ページにカードとして常時表示。出荷担当が実際に使える形にする |
 
 ### フェーズ2（説得力の上乗せ。ここまでで公開）
@@ -717,6 +717,50 @@ Dawn 標準の数量±ボタンが正常に動くのは、数量変更では最�
    フェーズ2でこの2件をまとめて再検討する価値がある。
 
 **公開前に必ず決着させること。**
+
+#### 決着: 選択肢2（expand廃止・独立行化）を採用（2026-08-14）
+
+Shopify への問い合わせ回答を待つコストに対し、独立行化はリスク9の税額按分も同時に
+解消できるため、選択肢2を採用した。**「なぜ Cart Transform expand を使うのか」
+（上記「設計判断の理由」）は本決定により無効**。以下に置き換える。
+
+expand を選んだ理由だった2つの懸念は、独立行化後は次の方法で構造的にカバーする。
+
+| 懸念 | 対策 |
+|---|---|
+| 顧客がのし・包装料の行だけ削除できてしまう | `noshi-cart.js` が fee 行を DOM 上で非表示にする（`main-cart-items` 内の行IDに `display:none`）。削除ボタンごと見えなくなるため、通常のカート操作からは触れない |
+| 親行を削除すると fee 行が孤児として残る | 「欲しい fee 行の集合」を毎回 `cart.items` から**ゼロから再計算**する `reconcileFeeLines` を、ページ読み込み時と `main-cart-items` の DOM 変化（`MutationObserver`）のたびに走らせる。親が消えれば対応する fee 行も次の整合タイミングで自動的に削除される |
+
+**構造的に完全ではない**ことも明記しておく。devtools からの直接操作や JS 無効環境、
+`/cart/change.js` を直接叩く行為までは防げない。次回のページロード・カート更新時に
+自己修復する「時間差のある保護」であり、expand の構造的な保証とは性質が違う。
+公開前のガードレールとしては十分だが、決済直前の最終防衛線ではない点は将来の
+フェーズで再検討の余地がある。
+
+**実装内容**:
+
+- `extensions/noshi-fee`（Cart Transform）を削除。`shopify.app.toml` の
+  スコープから `write_cart_transforms` を除去
+- `noshi-cart.js` が `/cart/add.js` でのし代・包装料を通常のカート行として追加する。
+  fee 行には非表示の `_noshi_parent_key` プロパティ（先頭 `_` は Dawn の
+  `main-cart-items.liquid` が `property_first_char != '_'` で除外するため画面に出ない）で
+  親行のキーを持たせ、親子の対応関係を追跡する
+- 単価は Function の `fixedPricePerUnit` ではなく、ダミー商品（のし代・包装料）の
+  Admin 上の variant 価格が正になる。shop metafield の値は変更不要
+  （`noshiFeeVariantId` / `wrapFeeVariantId` は独立行化前から既に投入済みのため）
+- `noshi-wrap-free`（Discount）は、バンドル行への固定額割引ではなく、
+  包装料の行そのものを `percentage: 100%` で直接ターゲットする方式に変更。
+  割引対象を明示的に選べるため、リスク9で見つかった税額按分の問題も消える
+- `blocks/noshi_options.liquid` は shop metafield から variant ID を読み、
+  熨斗入力UIの対象から fee 行自身を除外する
+- fixture テスト7件（`noshi-wrap-free`）をこの方式に合わせて更新、全緑
+- **開発ストアの後片付けが必要**: 旧 `noshi-fee` の Cart Transform
+  （`gid://shopify/CartTransform/167641405`、`docs/context.md` 参照）は
+  Function 実体が無くなったため孤立している。`cartTransformDelete` で削除すること
+  （このセッションではストア認可がタイムアウトし未実施）
+
+**未実施**: 実機での通し確認（8項目）のやり直し。コード変更後まだ実店舗で
+再検証していない。次のセッションで `shopify app dev --theme 190518362429` から行うこと。
 
 この制約のため、保存は**行ごとの「保存」ボタン方式**にした。変更のたびに送る即時保存だと
 そのたびに reload が走って使い物にならないため。

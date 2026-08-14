@@ -13,8 +13,9 @@
           {
             "id": "gid://shopify/CartLine/1",
             "quantity": 1,
-            "noshiTitle": {
-              "value": "御中元"
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "id": "gid://shopify/ProductVariant/1"
             }
           }
         ]

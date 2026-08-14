@@ -8,11 +8,16 @@ import {
 
 /**
  * shop metafield `$app:noshi_settings`（shopify.app.toml で定義）の値の形。
- * noshi-fee（Cart Transform）と同じ設定を共有する。
- * しきい値・単価はストアごとに違うためコードに直書きしない。
+ * noshi-cart（Theme App Extension）と同じ設定を共有する。
+ * variant ID・しきい値はストアごとに違うためコードに直書きしない。
+ *
+ * 2026-08-14: Cart Transform expand を廃止し、のし代・包装料を独立したカート行に
+ * 変更したのに合わせて、単価（旧 wrapFeeAmount）は読まなくなった。包装料の行自体を
+ * percentage 100% で直接ターゲットするため、単価を知る必要がない。単価の正は
+ * ダミー商品（包装料）の Admin 上の variant 価格。
  */
 type NoshiSettings = {
-  wrapFeeAmount: string;
+  wrapFeeVariantId: string;
   freeWrapThreshold: number;
 };
 
@@ -24,7 +29,7 @@ function readNoshiSettings(input: CartInput): NoshiSettings | null {
 
   if (
     !value ||
-    typeof value.wrapFeeAmount !== "string" ||
+    typeof value.wrapFeeVariantId !== "string" ||
     typeof value.freeWrapThreshold !== "number"
   ) {
     return null;
@@ -53,20 +58,20 @@ export function cartLinesDiscountsGenerateRun(
     return NO_CHANGES;
   }
 
-  // Discount Function から見えるのは Cart Transform で expand されたあとの
-  // バンドル行であり、のし代・包装料のコンポーネントを個別には狙えない。
-  // そのため「包装料の分だけ固定額をバンドル行から引く」形で無料を表現する。
+  // のし代・包装料は独立したカート行なので、包装料の行そのものを直接ターゲットできる。
+  // percentage 100% で全額オフにすれば「包装料無料」になり、割引が茶葉・のし代へ
+  // 按分される問題（旧: バンドル行への固定額割引で発生していた）が起きない。
   const candidates: ProductDiscountCandidate[] = input.cart.lines
-    .filter((line) => Boolean(line.noshiTitle?.value?.trim()))
+    .filter(
+      (line) =>
+        line.merchandise.__typename === "ProductVariant" &&
+        line.merchandise.id === settings.wrapFeeVariantId,
+    )
     .map((line) => ({
       message: "包装料無料",
       targets: [{ cartLine: { id: line.id } }],
       value: {
-        // appliesToEachItem: true で、数量分の包装料をまとめて相殺する。
-        fixedAmount: {
-          amount: Number(settings.wrapFeeAmount),
-          appliesToEachItem: true,
-        },
+        percentage: { value: 100 },
       },
     }));
 

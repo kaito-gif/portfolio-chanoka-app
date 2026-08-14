@@ -18,7 +18,28 @@
 
 {{ 'noshi-cart.css' | asset_url | stylesheet_tag }}
 
-<div class="noshi-cart" data-noshi-root>
+{%- comment -%}
+  独立行化(2026-08-14)により、のし代・包装料もカートの通常商品行として cart.items に
+  現れる。variant ID は shop metafield `$app:noshi_settings`(access.storefront = public_read)
+  から読み、(1) 熨斗入力UIの対象からのし代・包装料自身を除外する、(2) JS 側が fee 行を
+  特定して非表示にできるようルート要素に data 属性として渡す、の2箇所で使う。
+  metafield が未投入・壊れている場合は空文字のままにし、下の除外・非表示は効かなくなるだけで
+  他の熨斗入力自体は動く(Function 側と同じ「設定がなければ何もしない」方針)。
+{%- endcomment -%}
+{%- comment -%}
+  metafield の variant ID は Admin API の GID(`gid://shopify/ProductVariant/12345`)。
+  Liquid の `item.variant_id` は裸の数値なので、末尾セグメントだけ取り出して比較する。
+{%- endcomment -%}
+{%- assign noshi_settings = shop.metafields.app.noshi_settings.value -%}
+{%- assign noshi_fee_variant_id = noshi_settings.noshiFeeVariantId | split: '/' | last | default: '' -%}
+{%- assign wrap_fee_variant_id = noshi_settings.wrapFeeVariantId | split: '/' | last | default: '' -%}
+
+<div
+  class="noshi-cart"
+  data-noshi-root
+  data-noshi-fee-variant-id="{{ noshi_fee_variant_id }}"
+  data-wrap-fee-variant-id="{{ wrap_fee_variant_id }}"
+>
   <h2 class="noshi-cart__heading">{{ 'noshi.heading' | t }}</h2>
 
   {%- if cart.item_count == 0 -%}
@@ -26,6 +47,10 @@
   {%- else -%}
     <ul class="noshi-cart__list" role="list">
       {%- for item in cart.items -%}
+        {%- assign item_variant_id = item.variant_id | append: '' -%}
+        {%- if item_variant_id == noshi_fee_variant_id or item_variant_id == wrap_fee_variant_id -%}
+          {%- continue -%}
+        {%- endif -%}
         {%- assign noshi_title = item.properties['表書き'] -%}
         {%- assign noshi_name = item.properties['名入れ'] -%}
         {%- assign noshi_type = item.properties['のし種別'] -%}

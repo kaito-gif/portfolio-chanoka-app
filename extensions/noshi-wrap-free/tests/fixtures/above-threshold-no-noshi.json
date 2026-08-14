@@ -13,7 +13,10 @@
           {
             "id": "gid://shopify/CartLine/1",
             "quantity": 1,
-            "noshiTitle": null
+            "merchandise": {
+              "__typename": "ProductVariant",
+              "id": "gid://shopify/ProductVariant/1"
+            }
           }
         ]
       },
@@ -25,7 +28,7 @@
       "shop": {
         "noshiSettings": {
           "jsonValue": {
-            "wrapFeeAmount": "300",
+            "wrapFeeVariantId": "gid://shopify/ProductVariant/52828643655997",
             "freeWrapThreshold": 3000
           }
         }

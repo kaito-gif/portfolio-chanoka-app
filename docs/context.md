@@ -69,16 +69,23 @@
 基本税 日本 10% / 商品の優先適用 8%（軽減税率対象コレクション）/ 税込表示 ON。
 事業体は米国のまま。詳細は `docs/requirements.md` の「リスク9」。
 
-### 未解決の不具合（次のセッションでまず引き継ぐこと）
+### カート描画固着の対策（次のセッションでまず引き継ぐこと）
 
-**Cart Transform の `lineExpand` operation で展開された行は、`/cart/change.js` で
-line item properties を更新しても、カートページの表示（テキスト）が更新されなくなる。**
-金額は常に正しく再計算されるため課金には影響しないが、選んだ表書き・名入れ等の
-表示が古いまま固着する。原因は Cart Transform の expand そのものにあると切り分け済み
-（未公開テーマ・`shopify app dev` の実行有無・本アプリの JS はいずれも無関係）。
-アプリ側からの回避策は未発見。詳細・切り分けの過程は `docs/requirements.md` の
-「原因の切り分け」、Notion のナレッジ（会社用 DB_メモ一覧、種別「障害対応」、
-2026-08-14登録）を参照。
+方針は決着し、コード実装も完了した（2026-08-14）。**Cart Transform の expand を廃止し、
+のし代・包装料を独立したカート行にする**方式へ切り替えた。`extensions/noshi-fee` は
+削除済み。詳細は `docs/requirements.md` の「決着: 選択肢2（expand廃止・独立行化）を採用」
+を参照。
+
+**残作業（未実施）**:
+
+1. 実機での通し確認8項目のやり直し（コード変更後まだ `chanoka-demo` で検証していない）
+2. 開発ストアに残る旧 Cart Transform（`gid://shopify/CartTransform/167641405`）を
+   `cartTransformDelete` で削除する。このセッションでは `shopify store auth` の
+   ブラウザ認可がタイムアウトし、ストアへの Admin 接続ができなかった
+
+なお shop metafield `$app:noshi_settings` は変更不要（`noshiFeeVariantId` /
+`wrapFeeVariantId` は独立行化前から既に投入済みのため。`noshiFeeAmount` /
+`wrapFeeAmount` は使われなくなったが残しておいても実害はない）。
 
 ## 進捗
 
@@ -176,5 +183,14 @@ Functionの入力クエリに名入れ・のし種別を足す対策は効果が
 アプリ側からの回避策は未発見で、選択肢はShopifyへの報告か、expandをやめて
 料金を独立した行にするかの2つ。後者はリスク9の税額按分も同時に解消するため、
 フェーズ2でまとめて再検討する。詳細は `docs/requirements.md` の「原因の切り分け」を参照。
+
+2026-08-14: カート描画固着への対策として、Cart Transform expand を廃止し
+のし代・包装料を独立したカート行にする方式（`docs/requirements.md` の2択の選択肢2）を
+実装した。`extensions/noshi-fee` を削除、`noshi-cart.js` に `/cart/add.js` での
+fee行追加・`reconcileFeeLines`（親行への追随・孤児の自動除去）・DOM非表示化を追加、
+`noshi-wrap-free` は割引対象を包装料行そのものへ直接ターゲットする方式に変更した
+（副産物としてリスク9の税額按分問題も解消）。fixtureテスト7件は緑。**実機での
+通し確認と、開発ストアに残る旧Cart Transformオブジェクトの削除はこのセッションでは
+未実施**（ストア認可のOAuthがタイムアウト）。次のセッションでまず終わらせること。
 
 <!-- 以降、作業のたびに日付付きで追記する -->
