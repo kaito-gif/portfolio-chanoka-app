@@ -22,9 +22,11 @@
 経緯・意思決定の理由・進捗は `docs/context.md` を参照(このファイルには**ルール**だけを書き、
 **事実**は `docs/context.md` 側に置く)。
 
-実装範囲・確定事項・未検証のリスクは `docs/requirements.md` に集約している。
-**実装で迷ったら requirements.md を正とし、食い違ったら requirements.md 側を直してから
-実装する。**
+実装作業は `docs/spec.md` を作業指示書として進める。**何を作るか・今どこまで実装済みか・
+実装時に必ず守ること**はここに集約している。調査の経緯・実測ログ・まだ決着していない論点は
+`docs/requirements.md` 側に置く(spec.md はrequirements.mdの確定事項を反映した派生物で、
+2つが食い違ったら spec.md を正として requirements.md 側を追いつかせる)。
+**実装で迷ったら spec.md を見る。詳細な経緯を辿るときだけ requirements.md を見る。**
 
 ## 構成
 
