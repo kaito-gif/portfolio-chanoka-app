@@ -180,16 +180,26 @@
     return wanted;
   }
 
+  /*
+   * fee variant の行はすべて対象にする(2026-08-14 設計レビューで修正)。
+   * fee 商品は CON-04 によりオンラインストアに公開されているため、商品ページの
+   * URL を直打ちすれば誰でも親行なしで fee 行をカートに追加できてしまう。
+   * 以前は _noshi_parent_key を持つ行だけを対象にしていたため、そうした行が
+   * 「孤児」と判定されず、hideFeeRows で非表示にされたまま課金され続けていた。
+   * parentKey が空の行は wanted 側と決して一致しない(wanted の parentKey は
+   * 常に実在する親行のキー)ため、下の reconcileFeeLines で自動的に
+   * toRemove へ回る。特別扱いは不要。
+   */
   function existingFeeLines(cart) {
     return cart.items
       .filter(function (item) {
-        return isFeeVariant(item.variant_id) && item.properties && item.properties[PARENT_KEY_PROPERTY];
+        return isFeeVariant(item.variant_id);
       })
       .map(function (item) {
         return {
           key: item.key,
           variantId: item.variant_id,
-          parentKey: item.properties[PARENT_KEY_PROPERTY],
+          parentKey: (item.properties && item.properties[PARENT_KEY_PROPERTY]) || '',
           quantity: item.quantity,
         };
       });
@@ -243,56 +253,99 @@
     /* /cart/update.js は複数行の数量を1リクエストでまとめて変えられる。
        properties は変わらないので、削除(quantity 0)と数量追随はこれで十分。 */
     if (Object.keys(updates).length > 0) {
-      chain = chain.then(function () {
-        return fetch('/cart/update.js', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ updates: updates }),
-        });
-      });
+      chain = chain
+        .then(function () {
+          return fetch('/cart/update.js', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ updates: updates }),
+          });
+        })
+        .then(checkCartResponse);
     }
 
     /* 追加は /cart/add.js に items 配列でまとめて送る。 */
     if (toAdd.length > 0) {
-      chain = chain.then(function () {
-        return fetch('/cart/add.js', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({
-            items: toAdd.map(function (entry) {
-              var properties = {};
-              properties[PARENT_KEY_PROPERTY] = entry.parentKey;
-              return {
-                id: entry.variantId,
-                quantity: entry.quantity,
-                properties: properties,
-              };
+      chain = chain
+        .then(function () {
+          return fetch('/cart/add.js', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              items: toAdd.map(function (entry) {
+                var properties = {};
+                properties[PARENT_KEY_PROPERTY] = entry.parentKey;
+                return {
+                  id: entry.variantId,
+                  quantity: entry.quantity,
+                  properties: properties,
+                };
+              }),
             }),
-          }),
-        });
-      });
+          });
+        })
+        .then(checkCartResponse);
     }
 
+    /* いずれかが失敗すれば chain 全体が reject し、呼び出し元(save/passiveReconcile)へ
+       伝播する。ここで catch して true を返す(＝成功扱いにする)と、B-1 の不具合が
+       再発するため絶対にしない。 */
     return chain.then(function () {
       return true;
     });
   }
 
-  /* fee 行(のし代・包装料自身)をカート画面から非表示にする。
-     Dawn の行IDは `CartItem-{{ item.index | plus: 1 }}`(main-cart-items.liquid、
-     読むだけで編集はしない)。cart.items の並び順とインデックスを対応させる。 */
+  /*
+   * fee 行(のし代・包装料自身)をカート画面から非表示にする。
+   * Dawn の行IDは `CartItem-{{ item.index | plus: 1 }}`(main-cart-items.liquid、
+   * 読むだけで編集はしない)。cart.items の並び順とインデックスを対応させる。
+   *
+   * ■ index だけで対象を決めてはいけない(2026-08-14 設計レビューで修正)
+   * この関数は「カートを取得 → 非表示化 → reconcileFeeLines で差分反映 →
+   * 再取得 → 再度非表示化」という流れの中で2回呼ばれる(passiveReconcile 参照)。
+   * 2回目に非表示化する対象の DOM は、差分反映**前**に描画されたもの。
+   * 差分反映で行の追加・削除が起きるとカート配列の長さと並びが変わり、
+   * index と実際の DOM 行の対応が崩れる。そのまま index だけで
+   * display:none にすると、無関係な商品行が購入者の画面から消える
+   * (復帰処理を持たないため、料金の加算漏れより重大な壊れ方になる)。
+   *
+   * Dawn の数量入力(main-cart-items.liquid)は `data-quantity-line-key` に
+   * その行のカートキーを持っている。これで「index が指す行が、本当にこの
+   * fee 行か」を照合してから隠す。**照合できない場合は何もしない**
+   * (fee 行が一時的に見えてしまう方が、無関係な商品が消えるより軽微)。
+   * この属性もテーマは読むだけで、改変はしていない。
+   */
   function hideFeeRows(cart) {
     if (FEE_VARIANT_LIST.length === 0) return;
     cart.items.forEach(function (item, index) {
       if (!isFeeVariant(item.variant_id)) return;
       var row = document.getElementById('CartItem-' + (index + 1));
-      if (row) row.style.display = 'none';
+      if (!row) return;
+      var quantityInput = row.querySelector('[data-quantity-line-key]');
+      if (!quantityInput || quantityInput.dataset.quantityLineKey !== item.key) return;
+      row.style.display = 'none';
     });
   }
 
   function fetchCart() {
     return fetch('/cart.js', { headers: { Accept: 'application/json' } }).then(function (response) {
       return response.json();
+    });
+  }
+
+  /*
+   * カート更新APIのレスポンスを検証する(2026-08-14 設計レビューで追加)。
+   * fetch は HTTP 4xx/5xx を reject しない。検証せずに then へ進むと、
+   * 例えば fee 商品が販売チャネル未公開で /cart/add.js が 422 を返しても
+   * 「成功」扱いのまま save() が reload してしまい、購入者には熨斗が保存された
+   * 画面が出るのにのし代・包装料が課金されない、という気付きにくい壊れ方をする。
+   */
+  function checkCartResponse(response) {
+    return response.json().then(function (data) {
+      if (!response.ok || data.status || data.errors) {
+        throw new Error((data && (data.description || data.message)) || 'cart request failed');
+      }
+      return data;
     });
   }
 
