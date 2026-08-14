@@ -22,11 +22,19 @@
 経緯・意思決定の理由・進捗は `docs/context.md` を参照(このファイルには**ルール**だけを書き、
 **事実**は `docs/context.md` 側に置く)。
 
-実装作業は `docs/spec.md` を作業指示書として進める。**何を作るか・今どこまで実装済みか・
-実装時に必ず守ること**はここに集約している。調査の経緯・実測ログ・まだ決着していない論点は
-`docs/requirements.md` 側に置く(spec.md はrequirements.mdの確定事項を反映した派生物で、
-2つが食い違ったら spec.md を正として requirements.md 側を追いつかせる)。
-**実装で迷ったら spec.md を見る。詳細な経緯を辿るときだけ requirements.md を見る。**
+ドキュメントは4系統ある。**実装で迷ったら spec.md、設計の根拠を示すときは docs/design/、
+経緯を辿るときだけ requirements.md** を見る。
+
+| 文書 | 役割 | 想定読者 |
+|---|---|---|
+| `docs/spec.md` | 作業指示書。実装状況と作業時の注意 | 自分（実装時） |
+| `docs/design/01-requirements.md`<br>`docs/design/02-basic-design.md`<br>`docs/design/03-detailed-design.md` | 要件定義・基本設計・詳細設計の正式な三層 | 第三者（成果物として見せる） |
+| `docs/requirements.md` | 技術検証の実測ログ(一次記録) | 自分（経緯を辿るとき） |
+| `docs/context.md` | 背景・開発ストアの現状・進捗 | 自分（セッション開始時） |
+
+`docs/design/` は spec.md・requirements.md の確定事項から起こした派生物。
+**内容が食い違ったら docs/design/ 側を正とし、他を追いつかせる**(設計書が最も
+第三者の目に触れるため)。実装を変えたら設計書の該当箇所も併せて直す。
 
 ## 構成
 

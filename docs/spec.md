@@ -47,8 +47,8 @@ Theme App Extension・Shopify Functions・Admin UI Extension のみで構成す�
 └─────────────────────┘
 ```
 
-設定値（variant ID・単価・しきい値）は shop metafield `$app:noshi_settings`
-（type: json）に一元化し、Theme App Extension・両Functionが同じ値を参照する。
+設定値（variant ID・しきい値）は shop metafield `$app:noshi_settings`
+（type: json）に一元化し、Theme App Extension と Discount Function が同じ値を参照する。
 
 ## データモデル
 
@@ -57,7 +57,7 @@ Theme App Extension・Shopify Functions・Admin UI Extension のみで構成す�
 | 熨斗の要否・表書き・名入れ・のし種別 | カート行の line item properties（キー: `表書き`／`名入れ`／`のし種別`） | 注文確定後は**読み取り専用**。編集する mutation は存在しない |
 | のし代・包装料 | 通常のカート行（独立行）。非表示の `_noshi_parent_key` プロパティで親行のキーを保持 | ダミー商品2点（のし代・包装料）。**「オンラインストア」販売チャネルに公開している必要がある**（未公開だと `/cart/add.js` が422で失敗する） |
 | 表書きの選択肢 | Metaobject（`app--{app_id}--noshi_title`） | マーチャントが管理画面から増減できる。7件投入済み（御中元・御歳暮・御祝・内祝・御礼・粗品・無地熨斗） |
-| variant ID・単価・しきい値 | shop metafield `$app:noshi_settings`（type: json） | `{ noshiFeeVariantId, wrapFeeVariantId, noshiFeeAmount, wrapFeeAmount, freeWrapThreshold }`。`noshiFeeAmount`/`wrapFeeAmount` は独立行化後は未使用（残しても実害なし） |
+| variant ID・しきい値 | shop metafield `$app:noshi_settings`（type: json） | `{ noshiFeeVariantId, wrapFeeVariantId, freeWrapThreshold }` の3キー。**単価は持たない**（独立行化以降、単価の正はダミー商品のvariant価格。旧 `noshiFeeAmount`/`wrapFeeAmount` は廃止済み） |
 | 出荷担当による訂正値（未実装） | Order メタフィールド（app-owned、名前未定） | line item properties は書き換えられないため、訂正は別データとして持つ。元の入力と訂正後の値を両方表示する設計にする |
 
 **Liquid から `$app:noshi_settings` を読むときの注意**: `shop.metafields.app.noshi_settings`

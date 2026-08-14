@@ -46,7 +46,7 @@
 | ダミー商品 | のし代 variant `52828643590461`（¥100） / 包装料 variant `52828643655997`（¥300）。いずれも在庫追跡なし・配送不要・販売チャネル未公開 |
 | コレクション | 軽減税率対象(飲食料品) `554660430141`（日本茶6商品・手動・未公開） |
 | Metaobject | `app--410001276929--noshi_title` にエントリー7件（`ochugen` / `oseibo` / `oiwai` / `uchiiwai` / `orei` / `soshina` / `muji`） |
-| Shop Metafield | `$app:noshi_settings`（`gid://shopify/Metafield/46694357107005`、type: json）に、のし代・包装料の variant ID/単価/包装料無料のしきい値を投入済み（のし代¥100・包装料¥300・しきい値¥3,000）。`noshi-fee`・`noshi-wrap-free` の両 Function がここを参照する。詳細は `docs/requirements.md` の「設定値の一元化」を参照 |
+| Shop Metafield | `$app:noshi_settings`（`gid://shopify/Metafield/46694357107005`、type: json）。**現在の値は3キー**（`noshiFeeVariantId` / `wrapFeeVariantId` / `freeWrapThreshold`＝3,000）。`noshi-cart`（Liquid・JS）と `noshi-wrap-free`（Function）が参照する。**単価は持たない**（独立行化以降、単価の正はダミー商品のvariant価格＝のし代¥100・包装料¥300。旧 `noshiFeeAmount`/`wrapFeeAmount` は廃止）。詳細は `docs/requirements.md` の「設定値の一元化」を参照 |
 
 ### Function の登録（ストア側にオブジェクトが作られている）
 
