@@ -469,7 +469,7 @@ Function 側に単価を持たせると二重管理になる。
 
 ---
 
-## 5. C-03: Admin UI Extension（`noshi-order-block`。FR-15・FR-17 実装済み、FR-18 未実装）
+## 5. C-03: Admin UI Extension（`noshi-order-block`。FR-15・FR-17・FR-18 実装済み）
 
 ### 5.1 拡張定義
 
@@ -480,7 +480,7 @@ Function 側に単価を持たせると二重管理になる。
 | 生成コマンド | `shopify app generate extension --template admin_block`（scaffold 後、target を手で `admin.order-details.block.render` に書き換えた。既定は `admin.product-details.block.render`） |
 | api_version | `2025-10`（CLI が scaffold 時に選んだ値をそのまま採用。設計段階では `2026-07` を想定していたが、実機では CLI の選択を優先した） |
 | コンポーネントモデル | Preact + Polaris web components（`s-*`）。`@shopify/ui-extensions` を `2025.10.x` に固定 |
-| 現在のスコープ | `read_orders`（表示のみのため）。FR-18（訂正）を実装するときに `write_orders` を追加する |
+| 現在のスコープ | `write_orders`（2026-08-15、FR-18実装時に`read_orders`から差し替え。訂正値の書き込みに必要） |
 | 前提設定 | `shopify.app.toml` の `[access.admin]` で `direct_api_mode = "online"` かつ `embedded_app_direct_api_access = true`（設定済み） |
 
 ### 5.1.1 保護対象顧客データ（Protected Customer Data）の壁（2026-08-15 実機で判明）
@@ -590,7 +590,7 @@ buildNoshiCards(lineItemNodes, corrections = {}):
 
 空の項目は行ごと省く（5.2.1 の判定と揃える）。
 
-### 5.3 訂正を別データとして持つ理由（FR-18 / CON-05。未実装）
+### 5.3 訂正を別データとして持つ理由（FR-18 / CON-05。実装済み・2026-08-15）
 
 注文確定後の商品行の属性を変更する API は存在しない。
 注文レベルの属性を更新する mutation はあるが、それは**商品行の属性ではない**。
@@ -605,6 +605,24 @@ buildNoshiCards(lineItemNodes, corrections = {}):
 
 全世代の履歴が必要になった場合は、メタフィールドの値を単一値ではなく
 訂正の配列として持つ設計へ変更する。
+
+**実装結果**: `[order.metafields.app.noshi_correction]`（type: json）を
+`shopify.app.toml`に宣言し、`shopify app dev`起動時に自動デプロイされることを確認した。
+値は`{ [lineItemId]: { title, name, type } }`のJSON。1行の訂正であっても、注文単位の
+単一メタフィールドである以上は既存の全訂正を読み込んでからマージして書き直す
+必要があり、その通りに実装した(`OrderNoshiBlock.jsx`の`saveCorrection`)。同時に
+編集できる行は1件に制限した(複数行同時編集を許すと保存の衝突をこの設計内で
+考慮する必要が出るため、意図的にスコープ外とした)。実機で2件の注文に対し独立して
+訂正・保存できること、キャンセル時は書き込みが発生しないことを確認済み。
+
+**訂正UI追加で新たに判明した表示上の癖**: カードに訂正フォームの分だけ表示行が
+増えた結果、Adminの「警告：このブロックは高すぎます」という制約に触れるようになった。
+この警告が出ている間、Adminはブロック内容を複数カラムのCSSレイアウトに詰めて
+表示するため、DOM順序自体は正しいのに、視覚的には「訂正するボタン」が
+表書きと名入れの行の間に来るなど、見た目上の順序が入れ替わって見える
+(a11yツリーで実際のDOM順序が正しいことを確認済み)。「さらに表示」を押すと
+1カラム表示に展開され解消する。クリック・保存の動作自体には影響がないため、
+表示行数を削る設計変更はせず既知の癖として記録するに留めた。
 
 ### 5.4 注意事項
 

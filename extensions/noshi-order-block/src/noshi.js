@@ -67,6 +67,9 @@ export function buildNoshiCards(lineItemNodes, corrections = {}) {
       imageUrl: item.image?.url ?? null,
       fields,
       hasCorrection: Boolean(correction),
+      /* 訂正フォームの初期値。fields と違い空文字も保持する
+         (「名入れなしに訂正する」を表現できる必要があるため)。 */
+      values: { title, name, type },
     });
   }
 

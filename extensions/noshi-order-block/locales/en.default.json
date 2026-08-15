@@ -1,6 +1,6 @@
 {
   "name": "Noshi details",
-  "description": "Show per-product noshi (gift wrapping) details for the order",
+  "description": "Show and correct per-product noshi (gift wrapping) details for the order",
   "heading": "Noshi (gift wrapping) details",
   "summary": "{{count}} noshi item(s)",
   "empty": "No noshi was requested for this order.",
@@ -15,13 +15,20 @@
     "label": "Print data",
     "help": "Select and copy this text, then paste it into your noshi printing instructions."
   },
+  "correction": {
+    "badge": "Corrected",
+    "edit": "Correct",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saveError": "Couldn't save the correction. Please try again shortly."
+  },
   "warning": {
     "truncated": "This order has many line items; showing only the first 100."
   },
   "error": {
     "heading": "We couldn't load noshi details",
     "retry": "Retry",
-    "access": "This app doesn't have the required permission. Please check the read_orders approval status.",
+    "access": "This app doesn't have the required permission. Please check the write_orders approval status.",
     "notFound": "We couldn't load this order. Orders older than 60 days aren't available by default.",
     "generic": "Please try again shortly."
   }

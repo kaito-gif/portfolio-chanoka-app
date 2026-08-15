@@ -22,11 +22,11 @@ embedded_app_direct_api_access = true
 # (独立行化方式では /cart/add.js がオンラインストア未公開の商品を追加できないため。2026-08-14実測)。
 # write_cart_transforms は開発ストアに残る旧 CartTransform オブジェクト削除のため一時追加したが、
 # 確認したところ既に存在しなかった(noshi-fee拡張の削除時に自動で消えていたとみられる)ため撤去した。
-# read_orders は構成要素#5(受注画面の熨斗カード)が注文のline itemを読むために追加した(2026-08-15)。
-# 今回は表示のみなので read_orders で足り、write_orders は構成要素#5後段(受注後の訂正・FR-18)まで
-# 追加しない。60日より前の注文を読む要件はないため read_all_orders も追加しない
-# (審査で用途を問われうるスコープのため、必要になるまで持たない)。
-scopes = "write_discounts,write_products,write_publications,read_orders"
+# write_orders は構成要素#5(受注画面の熨斗カード)が注文のline itemを読み(2026-08-15)、
+# 構成要素#9(受注後の熨斗の訂正・FR-18)がOrder metafieldへ訂正値を書くために必要
+# (2026-08-15、read_ordersから差し替え)。60日より前の注文を読む要件はないため
+# read_all_orders は追加しない(審査で用途を問われうるスコープのため、必要になるまで持たない)。
+scopes = "write_discounts,write_products,write_publications,write_orders"
 
 [auth]
 redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
@@ -67,3 +67,13 @@ name = "熨斗設定"
 description = "のし代・包装料のvariant ID、包装料無料のしきい値（JSON）"
 type = "json"
 access.storefront = "public_read"
+
+# 構成要素#9(受注後の熨斗の訂正・FR-18)の受け皿。line item properties は注文確定後
+# 書き換えられないため、訂正値はOrder metafieldに別データとして持つ(元の入力値は
+# line item側にそのまま残る。詳細設計5.3)。値は { [lineItemId]: { 表書き, 名入れ, のし種別 } }
+# のJSON。書き込みは metafieldsSet + write_orders。マーチャント(受注担当)が直接編集する
+# 想定はなく、noshi-order-block からのみ読み書きするため access.admin は付けない。
+[order.metafields.app.noshi_correction]
+name = "熨斗訂正"
+description = "受注後に出荷担当が訂正した熨斗情報（JSON）"
+type = "json"

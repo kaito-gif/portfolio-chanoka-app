@@ -9,6 +9,9 @@ export const ORDER_NOSHI_QUERY = `
     order(id: $id) {
       id
       name
+      noshiCorrection: metafield(namespace: "$app", key: "noshi_correction") {
+        jsonValue
+      }
       lineItems(first: $first) {
         nodes {
           id
@@ -33,11 +36,22 @@ export const ORDER_NOSHI_QUERY = `
 `;
 
 /*
- * FR-18(受注後の訂正)を実装するときは、上のクエリに
- *   order {
- *     noshiCorrection: metafield(namespace: "$app", key: "noshi_correction") { jsonValue }
- *   }
- * を足して order 直下から訂正値を読み、buildNoshiCards の corrections 引数へ渡す。
- * Admin GraphQL では $app: が使える(Liquid だけが使えない。詳細設計 6.1 参照)。
- * 書き込みは metafieldsSet + write_orders スコープ(詳細設計 5.3)。
+ * FR-18(受注後の訂正)。訂正値は line item 単位ではなく Order metafield に
+ * 「lineItemId をキーにした訂正値のJSON」としてまとめて持つ(詳細設計 5.3)。
+ * 1行訂正するだけでも、既存の訂正値とマージしたオブジェクト全体を書き直す。
  */
+export const SET_NOSHI_CORRECTION_MUTATION = `
+  mutation SetNoshiCorrection($ownerId: ID!, $value: String!) {
+    metafieldsSet(metafields: [
+      { ownerId: $ownerId, key: "noshi_correction", type: "json", value: $value }
+    ]) {
+      metafields {
+        id
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
