@@ -627,6 +627,49 @@ Thank you ページの拡張が使える `Order` API は `isFirstOrder` と `num
 （または該当テンプレート）で scaffold して実機確認すること。プラン境界の再確認は
 ドキュメントレベルでの裏取りのみ。
 
+### 構成要素#7の実現方式の再検討（2026-08-15。設計決定・実機検証は未着手）
+
+**結論: Checkout UI Extension（Thank you ページ）ではなく、Customer Account UI
+Extension（注文ステータスページ）に実現方式を変更する。**
+
+Thank you ページの `Order` API では熨斗情報を取得できないという上記の制約は
+解消できないため、Checkout UI Extension自体を諦め、別の拡張タイプに乗り換える。
+`shopify-customer` skill でCustomer Account UI Extensionsのドキュメントを調査した結果、
+以下が判明した:
+
+- ターゲット `customer-account.order-status.cart-line-item.render-after`
+  （各商品行の直後に描画。行単位の情報を出すのに適する）が使う **Cart Lines API** の
+  `CartLine.attributes` フィールドが「Custom key-value attributes attached to this
+  cart line, such as gift messages or engraving text」と説明されており、
+  熨斗のline item properties（表書き・名入れ・のし種別）がそのまま載ることを確認した
+  （[Cart Lines API](https://shopify.dev/docs/api/customer-account-ui-extensions/2026-07/target-apis/order-apis/cart-lines-api)）
+- **Admin APIへの依存がない**。買い手が自分の注文を見るという文脈のAPIのため、
+  構成要素#5で踏んだ「保護対象顧客データ」の壁（Admin APIの`read_orders`/`write_orders`
+  だけでは`Order`オブジェクトにアクセスできない問題）はそもそも発生しない
+- **注文ステータスページはThank youページと違って恒久的に見返せる**。むしろ
+  「購入後いつでも贈答内容を確認できる」というFR-14の趣旨に、Thank youページの
+  一度きりの表示より適合する
+
+**この方式の前提条件（未確認・実装着手前に要確認）**:
+
+1. Customer Account UI Extensionsは、ストアの顧客アカウントが**新しい顧客アカウント
+   （New customer accounts）**に設定されていることが前提（クラシック顧客アカウントでは
+   拡張ターゲットが表示されない）。`chanoka-demo`の現在の設定は未確認。設定変更は
+   Adminの「設定」からの操作でありCLAUDE.mdの規約上Claudeからは実施できないため、
+   未設定であればユーザーに切り替えを依頼する
+2. `CartLine.attributes`のkeyがカート側の line item properties のキー名
+   （`表書き`/`名入れ`/`のし種別`）とそのまま一致するかは未検証。構成要素#1の
+   `noshi-cart.js`が`/cart/add.js`で送っているキー名がAdmin側の`customAttributes`と
+   一致していることは構成要素#5で確認済みだが、Customer Account API側の
+   `CartLine.attributes`が同じキーを返すかは実機確認が要る
+3. 料金行（のし代・包装料）の除外方法は構成要素#5と同じ「表書きが空でない行だけ拾う」
+   判定を流用できる見込み（`noshi.js`の`buildNoshiCards`はロジックが独立しており、
+   入力の形が`customAttributes`から`attributes`に変わるだけであれば流用できる）
+
+未着手のまま残る作業: 前提条件1の実機確認（ユーザーに設定確認を依頼）、
+scaffold（`shopify app generate extension`でCustomer Account UI Extensionを追加）、
+`CartLine.attributes`の実際のキー名を実機で確認、表示実装、実機検証。
+
 ### リスク8: Functions の単体テストを CI に載せられるか（2026-08-14 調査。実機のCI実行は未着手）
 
 **結論: 載せられる。ただし2点、実際にワークフローを組むときに気をつけること。**

@@ -36,8 +36,12 @@
 
 - Org: `Katayama`（`shopify organization list` で確認できる）
 - アプリ名 `noshi-gift-app` / Client ID `be04894d1a1df2c1033f874658422347`
-- インストールは `shopify app dev` の**開発プレビューのみ**。恒久インストールは未実施
-- 付与済みスコープ: `write_cart_transforms` / `write_discounts` / `write_products`
+- インストールは `shopify app dev` の開発プレビューに加え、構成要素#5実装時（2026-08-15）に
+  Dev Dashboardの「アプリをインストール」ボタンから正規のOAuthインストールも実施済み
+  （保護対象顧客データへのアクセスに必要だったため。詳細は `docs/spec.md` の
+  「Admin API での調査・変更」参照）
+- 現在のスコープ（`shopify.app.toml`）: `write_discounts` / `write_products` /
+  `write_publications` / `write_orders`
 
 ### 商品・コレクション・Metaobject・Metafield
 
@@ -268,5 +272,24 @@ Customer Data承認は個別スコープ単位ではなく一度承認すれば�
 複数カラムに詰めて表示するため、DOM順序は正しいのに視覚的な行の並びが崩れて見える
 （「さらに表示」を押せば1カラム表示に戻り解消する）。実害はないため設計変更はせず、
 `docs/spec.md`に既知の表示上の癖として記録した。
+
+2026-08-15: 構成要素#7（購入後の贈答内容確認表示）を実装し、フェーズ2の残りは
+構成要素#10・#11の2項目のみになった。実現方式をCheckout UI Extension（Thank youページ）
+からCustomer Account UI Extension（注文ステータスページ）へ変更した。`shopify-customer`
+skillの調査で、Cart Lines APIの`CartLine.attributes`にline item propertiesがそのまま
+載ること、この経路はAdmin APIを一切使わないため構成要素#5で踏んだ「保護対象顧客データの
+壁」が発生しないことが分かり、その方式を採用した。`extensions/noshi-order-status`
+（`customer_account_ui`テンプレートでscaffold、ターゲット
+`customer-account.order-status.cart-line-item.render-after`）として実装。
+
+`chanoka-demo`の顧客アカウントは既に「新しい顧客アカウント」に設定済みだった
+（設定変更は不要）。実機確認では、Customer Account拡張のdev previewが
+「サインインした顧客アカウントが実際に注文を持っていること」を前提とする制約に
+突き当たり、ユーザーの実アカウント（[redacted]）でサインインした上で
+テスト注文（#1008、銀行振込のデモ決済・実口座への振込不要）を実際に作成して検証した
+（サインインおよび注文完了は事前にユーザーへ確認を取ってから実施した）。
+`CartLine.attributes`のキー名はカート側の`表書き`/`名入れ`/`のし種別`と完全に一致し、
+熨斗ありの商品行にのみカードが描画され、のし代・包装料の行（表書きを持たない）には
+描画されないことを確認した。コンソールエラーもなし。
 
 <!-- 以降、作業のたびに日付付きで追記する -->

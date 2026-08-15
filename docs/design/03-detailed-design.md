@@ -636,6 +636,68 @@ buildNoshiCards(lineItemNodes, corrections = {}):
 
 ---
 
+## 5A. C-04: Customer Account UI Extension（`noshi-order-status`。FR-14 実装済み・2026-08-15）
+
+### 5A.1 拡張定義
+
+| 項目 | 値 |
+|---|---|
+| ターゲット | `customer-account.order-status.cart-line-item.render-after`（注文ステータスページの商品行ごとに1回描画） |
+| ディレクトリ | `extensions/noshi-order-status` |
+| 生成コマンド | `shopify app generate extension --template customer_account_ui --name noshi-order-status`（`--flavor` は指定不可。scaffold後、target を `admin.order-status.block.render` から `customer-account.order-status.cart-line-item.render-after` へ手で書き換えた） |
+| api_version | `2026-07`（CLI が scaffold 時に選んだ値） |
+| コンポーネントモデル | Preact + Polaris web components（`s-*`）。C-03 と同じ構成 |
+| capabilities | `api_access`・`network_access`ともに有効化していない（Cart Lines APIのみで足りるため） |
+
+### 5A.2 経緯（Checkout UI Extensionから乗り換えた理由）
+
+当初はThank youページ（Checkout UI Extension）での実装を想定していたが、そこで使える
+`Order` APIは`isFirstOrder`/`number`のみで熨斗情報を読めないという制約が解消できなかった
+（`docs/requirements.md`「リスク7」参照）。`shopify-customer` skillでCustomer Account UI
+Extensionsを調査した結果、Cart Lines APIの`CartLine.attributes`にline item properties
+がそのまま載ることが分かり、拡張タイプそのものを乗り換えた。
+
+この経路はAdmin APIを一切経由しないため、C-03（`noshi-order-block`）で踏んだ
+「保護対象顧客データの壁」（`read_orders`/`write_orders`の承認だけでは`Order`オブジェクトに
+アクセスできない問題）は原理的に発生しない。買い手が自分の注文を見るという文脈のAPIで
+あるため。
+
+### 5A.3 実装した設計
+
+1. `shopify.target.value`から、この拡張が紐づく`CartLine`そのものを取得する
+   （このターゲットは商品行ごとに1回ずつ呼ばれるため、Order全体を取得する必要がない）
+2. `line.attributes`を`{key: value}`の連想配列に変換し、`表書き`が空の行は`null`を返す
+   （料金行・熨斗なしの商品行を除外する。C-03の`buildNoshiCards`と同じ主判定をここでも
+   踏襲。ただし拡張間でモジュールを共有する標準的な手段がないため、`NOSHI_KEYS`定数は
+   `noshi-cart`・`noshi-order-block`・`noshi-order-status`の3ファイルに重複している）
+3. 表書き・名入れ・のし種別を`s-box`のカードとして商品行の直後に表示する
+
+### 5A.4 実機確認（2026-08-15）
+
+Customer Account拡張のdev previewは「サインインした顧客アカウントが実際に注文を
+持っていること」が前提で、注文のない顧客アカウントで開くと`no_order=true`のプレースホルダー
+画面になる。検証のため、ユーザーの実アカウント（[redacted]）でサインインした
+上で、テスト注文（銀行振込のデモ決済・実口座への振込不要）を実際に1件作成した
+（サインイン・注文完了とも事前にユーザーへ確認を取った）。
+
+確認できたこと:
+
+- `chanoka-demo`の顧客アカウントは既に「新しい顧客アカウント」に設定済みだった
+  （Customer Account UI Extensionsの前提条件。設定変更は不要だった）
+- `CartLine.attributes`のキー名はカート側の`表書き`/`名入れ`/`のし種別`と完全に一致した
+- 熨斗ありの商品行に「熨斗(のし)情報」カードが正しく描画され、のし代・包装料の行
+  （表書きを持たない）には描画されないことを確認した
+- コンソールエラーなし
+
+### 5A.5 既知の重複表示
+
+Shopify標準のline item properties表示が、この注文ステータスページでも
+（Adminの注文詳細と同様に）キー名をそのままラベルとして「表書き: 御中元」のように出す。
+本拡張のカードと内容が並んで表示され、情報としては重複する。標準表示は制御できないため
+（C-03で受容した判断と同じ）、実害はないが認識しておくべき既知の癖として記録する。
+
+---
+
 ## 6. 実装上の制約・既知の注意点
 
 実装・改修の際に踏みやすい罠を集約する。いずれも実機検証で判明したもの。

@@ -1,0 +1,10 @@
+{
+  "name": "Noshi details",
+  "description": "Show per-product noshi (gift wrapping) details on the order status page",
+  "heading": "Noshi (gift wrapping) details",
+  "field": {
+    "title": "Occasion",
+    "name": "Name to print",
+    "type": "Noshi placement"
+  }
+}

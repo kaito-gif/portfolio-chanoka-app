@@ -8,7 +8,7 @@
 （`requirements.md` が調査ログの積み上げで、確定するたびにここへ反映するため）。
 実装で両者が食い違ったら、このファイルを正として `requirements.md` 側を追いつかせる。
 
-最終更新: 2026-08-15（構成要素#9・FR-18(受注後の熨斗の訂正)を実装、フェーズ2の残り3項目のみに）
+最終更新: 2026-08-15（構成要素#7(購入後の贈答内容確認・Customer Account UI Extension)を実装、フェーズ2の残りはCI化とデモ資材のみに）
 
 ## 何を作るか
 
@@ -92,7 +92,7 @@ Theme App Extension・Shopify Functions・Admin UI Extension のみで構成す�
 | # | 要素 | 状態 |
 |---|---|---|
 | 6 | 一定金額以上で包装料を無料（Discount Function） | ✅ 実装済み |
-| 7 | 購入後の贈答内容の確認表示（Checkout UI Extension） | ❌ 未着手。**プラン制約なしで作れるが、熨斗情報を直接読む手段がない**（下記「構成要素#7の制約」参照） |
+| 7 | 購入後の贈答内容の確認表示（Customer Account UI Extension） | ✅ 実装済み・実機確認済み（2026-08-15）。実現方式をCheckout UI Extension(Thank youページ)からCustomer Account UI Extension(注文ステータスページ)へ変更した(下記「構成要素#7の実装結果」参照) |
 | 8 | 熨斗の印字用データ出力 | ✅ 実装済み・実機確認済み（2026-08-15）。構成要素#5に統合 |
 | 9 | 受注後の熨斗の訂正（FR-18） | ✅ 実装済み・実機確認済み（2026-08-15）。`noshi-order-block`に統合 |
 | 10 | Functions の自動テスト | ✅ fixture ベースの単体テスト実装済み（`noshi-wrap-free` 7件）。CI化は未着手（下記「CI化の方針」参照） |
@@ -229,19 +229,47 @@ DOM順序自体は正しい(a11yツリーで確認済み)が、見た目上は�
 解消する。ブロックの表示行数を減らす設計変更をしない限り、このカラム化自体は
 Admin側の挙動なので消せない。
 
-## 構成要素#7の制約（Checkout UI Extension）
+## 構成要素#7の実装結果（2026-08-15。Checkout UI Extension → Customer Account UI Extensionへ変更・実機確認済み）
 
-Thank you ページの拡張自体はPlus限定ではなく全プランで使えるが、次の制約がある:
+Thank you ページ（Checkout UI Extension）で使える`Order` API は `isFirstOrder` / `number`
+しか公開せず、熨斗情報（line item properties）を読む手段がないという制約は解消できない
+ため、**拡張タイプそのものをCustomer Account UI Extension（注文ステータスページ）に
+変更した**。詳細な調査経緯は `docs/requirements.md` の「構成要素#7の実現方式の再検討」を参照。
 
-- Thank you ページで使える `Order` API は `isFirstOrder` / `number` しか公開せず、
-  熨斗情報（line item properties）は取得できない
-- Checkout UI Extension は Storefront API（`shopify:storefront` プロトコル）にはアクセス
-  できるが、**Admin GraphQL API への直接アクセスはできない**
-- 本アプリは extension-only（自前サーバーを持たない）ため、Admin API経由で熨斗情報を
-  取得してThank youページに渡す標準的な手段がない
+**実装した設計**: `extensions/noshi-order-status`（`customer_account_ui`テンプレートで
+scaffold）。
 
-着手前に、Storefront API経由で読める形（例: 顧客が確認できるorder経由の何らかのデータ）に
-持たせる設計を再検討すること。現時点では実現方式が未確定。
+- ターゲット: `customer-account.order-status.cart-line-item.render-after`
+  （各商品行の直後に描画。行単位で1回ずつ実行される）
+- 使用API: Cart Lines API の `shopify.target`（この拡張が紐づく`CartLine`そのものを返す）
+  の`.attributes`（`{key, value}[]`。line item properties がそのまま載る）
+- 表示ロジックは構成要素#5の`buildNoshiCards`と同じ「表書きが空でない行だけ拾う」判定を
+  踏襲(`OrderStatusBlock.jsx`内に同じ`NOSHI_KEYS`定数を持つ。3ファイル目の重複だが、
+  拡張間でモジュールを共有する標準的な手段がないため許容)
+- Admin APIへの依存がなく、構成要素#5で踏んだ「保護対象顧客データの壁」は発生しない
+- `api_access`・`network_access`とも有効化していない(Cart Lines APIだけで足りるため)
+
+**実機確認（2026-08-15）**:
+
+1. `chanoka-demo`の顧客アカウントは「新しい顧客アカウント」に設定済みだった
+   （設定画面のURLが`shopify.com/{shop_id}/account`形式であることから確認。
+   ユーザーによる設定変更は不要だった）
+2. Customer Account拡張のdev previewは「その顧客アカウントが実際に注文を持っている」
+   ことが前提(`no_order=true`で弾かれる)。ユーザーの実アカウント([redacted])
+   でサインインし、テスト注文(#1008、銀行振込・実口座への振込不要なデモ決済)を
+   実際に作成して検証した
+3. `CartLine.attributes`のキー名はカート側の`表書き`/`名入れ`/`のし種別`と完全に一致した
+4. 注文ステータスページで、Shopify標準のline item properties表示(「表書き: 御中元」等)とは
+   別に、本拡張の「熨斗(のし)情報」カードが商品行の直後に正しく描画された
+5. のし代・包装料の行(表書きを持たない)ではカードが描画されないことを確認(除外判定が
+   正しく効いている)
+6. コンソールエラーなし
+
+**新たに判明した設計上の論点**: Shopify標準のline item properties表示が、この注文
+ステータスページでも(Adminの注文詳細と同様に)キー名をそのままラベルとして
+「表書き: 御中元」のように出す。本拡張のカードと内容が重複して見える。実害はなく
+(標準表示は制御できないため受容している構成要素#5と同じ判断)、UIとしては「同じ情報が
+2箇所に出る」冗長さがある点は認識しておく。
 
 ## CI化の方針（Functions の自動テスト）
 
@@ -286,12 +314,10 @@ NFR-03(設定値の単一管理)を厳密には満たせていないが、影響
 
 ## 次にやること(優先順)
 
-1. 構成要素#7(Checkout UI Extension)の実現方式の再検討 … 着手前に必須。
-   Thank youページからは熨斗情報を読む手段がないため、設計から見直す
-2. CI化(構成要素#10の残り) … GitHub Actions ワークフローの実機確認
-3. デモ資材の作成（構成要素#11）… フェーズ2の完了条件。構成要素#5実機確認時の
-   スクリーンショット(熨斗カード・印字用データ)を素材として使える
-4. `README.md` の書き換え … 現在Shopifyテンプレートの雛形のままで、公開リポジトリの
+1. CI化(構成要素#10の残り) … GitHub Actions ワークフローの実機確認
+2. デモ資材の作成（構成要素#11）… フェーズ2の完了条件。構成要素#5・#7実機確認時の
+   スクリーンショット(熨斗カード・印字用データ・注文ステータスページ)を素材として使える
+3. `README.md` の書き換え … 現在Shopifyテンプレートの雛形のままで、公開リポジトリの
    入口として実態と食い違っている。設計書への導線もない
 
 ### 既知の未検証事項
