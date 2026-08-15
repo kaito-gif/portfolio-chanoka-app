@@ -44,7 +44,7 @@ flowchart TB
     end
 
     subgraph admin["Shopify 管理画面"]
-        adminblock["Admin UI Extension<br/>（構成要素#5・未実装）"]
+        adminblock["Admin UI Extension<br/>（構成要素#5・FR-18は未実装）"]
     end
 
     subgraph store["設定データ（Shopify ホスト）"]
@@ -71,7 +71,7 @@ flowchart TB
 |---|---|---|---|---|
 | C-01 | `extensions/noshi-cart` | Theme App Extension | カートページの熨斗入力 UI、料金行の追加・整合・非表示化 | 実装済み |
 | C-02 | `extensions/noshi-wrap-free` | Shopify Function（Discount） | 小計が一定額以上のとき包装料の行を 100% 割引 | 実装済み |
-| C-03 | Admin UI Extension | Admin UI Extension | 受注画面での熨斗情報の表示・訂正・印字用出力 | 未実装 |
+| C-03 | `extensions/noshi-order-block` | Admin UI Extension | 受注画面での熨斗情報の表示・印字用出力。訂正は未実装 | 表示・印字は実装済み、訂正(FR-18)は未実装 |
 | C-04 | 表書きマスタ | Metaobject | 表書きの選択肢を保持する | 構築済み |
 | C-05 | 熨斗設定 | Shop Metafield（json） | 料金商品の variant ID・包装料無料のしきい値を保持する | 構築済み |
 | C-06 | 料金商品 | Product（2 点） | のし代・包装料。カート行として追加される実体 | 構築済み |
@@ -246,7 +246,7 @@ Shop Metafield（json）に一元化し、Theme App Extension と Discount Funct
 | SC-01 | カートページ 熨斗入力ブロック | Theme App Extension | FR-01〜FR-06 |
 | SC-02 | 表書きマスタ管理 | Shopify 標準の Metaobject 管理画面 | FR-13 |
 | SC-03 | 熨斗設定 | Admin API 経由で投入（管理画面 UI は持たない） | FR-14 |
-| SC-04 | 注文詳細 熨斗情報カード | Admin UI Extension（未実装） | FR-15, FR-17, FR-18 |
+| SC-04 | 注文詳細 熨斗情報カード | Admin UI Extension（FR-15/17 実装済み、FR-18 未実装） | FR-15, FR-17, FR-18 |
 
 ### 4.2 要件と実現方式のトレーサビリティ
 
@@ -265,7 +265,9 @@ Shop Metafield（json）に一元化し、Theme App Extension と Discount Funct
 | FR-12 | Discount Function が包装料の行を 100% 割引 | C-02, C-05 |
 | FR-13 | Metaobject（管理画面から編集可能） | C-04 |
 | FR-14 | Shop Metafield（json） | C-05 |
-| FR-15, FR-17, FR-18 | Admin UI Extension（未実装） | C-03 |
+| FR-15 | Admin UI Extension のカードで商品ごとの熨斗情報を表示 | C-03 |
+| FR-17 | 同拡張内に読み取り専用の印字用テキストを表示 | C-03 |
+| FR-18 | 未実装。Order Metafield への訂正値保存を予定（5.3 参照） | C-03 |
 | FR-16 | 実現方式未確定（CON-06 により再検討が必要） | — |
 
 ### 4.3 非機能要件と実現方式のトレーサビリティ
@@ -462,7 +464,7 @@ flowchart TD
 | IF-05 | Liquid オブジェクト（Metaobject） | 表書きマスタの読み出し | C-01 |
 | IF-06 | Liquid オブジェクト（Shop Metafield） | 熨斗設定の読み出し | C-01 |
 | IF-07 | Function 入力クエリ（GraphQL） | 熨斗設定・カート行・割引種別の取得 | C-02 |
-| IF-08 | Admin GraphQL API | 注文の取得・訂正値の保存（未実装） | C-03 |
+| IF-08 | Admin GraphQL API | 注文の取得（実装済み）・訂正値の保存（未実装） | C-03 |
 
 **IF-05・IF-06 の注意**: Liquid からアプリ所有の Metaobject / Metafield を参照する際、
 `$app:` の短縮記法は使えない。名前空間にアプリ ID を直接指定する必要がある。
@@ -558,9 +560,12 @@ Shopify の「税率の上書き」機能でそのコレクションに 8% を�
 | `write_discounts` | Discount Function の登録 |
 | `write_products` | 料金商品（のし代・包装料）の作成・更新 |
 | `write_publications` | 料金商品をオンラインストアに公開（CON-04 への対応） |
+| `read_orders` | 構成要素#5（Admin UI Extension）が注文の熨斗情報を読み取る（2026-08-15 追加） |
 
-構成要素#5（Admin UI Extension）の実装時に `write_orders` を追加する。
+構成要素#5の訂正機能（FR-18）を実装するときに `write_orders` へ差し替える。
 一時的に付与したスコープは用が済んだ時点で除去する運用とする。
+なお `read_orders` の承認だけでは注文を読めず、Order は Shopify の
+「保護対象顧客データ」に該当するため別途アクセスの有効化が要った（詳細設計 5.1.1）。
 
 ### 10.2 データ保護
 
@@ -609,11 +614,15 @@ extension-only 構成のためアプリが独自にトークンを保持する�
 | 5 | しきい値到達 → 包装料が無料になる | FR-12 |
 | 6 | 属性が一致する行のマージ → 数量が合算され、商品が消えない | — |
 | 7 | コンソールにエラーが出ていない | — |
-| 8 | 注文完了後、受注画面に熨斗情報が出る（構成要素#5 実装後） | FR-15 |
+| 8 | 注文完了後、受注画面に熨斗情報が出る | FR-15 |
 | 9 | **チェックアウトで税区分が分かれている**（茶葉が 8%、のし代・包装料が 10% の対象として計上され、包装料の割引が茶葉に按分されない） | **NFR-07** |
 | 10 | **料金行を単独でカートに追加した場合、次のカート操作で除去される** | FR-11 |
 | 11 | **料金行の追加が失敗した場合、成功画面を出さずエラーが表示される**（料金商品を一時的に非公開にして再現する） | FR-07, FR-08 |
+| 12 | 熨斗を指定した注文・指定していない注文の両方で、受注画面のカードが正しく出し分けられる（後者は空状態メッセージ） | FR-15 |
+| 13 | 受注画面の印字用データが、日本語ラベル・日本語値のまま正しい書式で出る | FR-17 |
 
 項目 9〜11 は設計レビュー（2026-08-14）で追加した。
 **9 は NFR-07 の唯一の確認手段**（自動テストは税を検証していない）、
 **10・11 は独立行方式が新たに背負ったリスク**（3.2）に対応する。
+項目 8・12・13 は 2026-08-15 に構成要素#5（`noshi-order-block`）の実機確認で通過した。
+実機で3件の注文（熨斗あり×2、熨斗なし×1）を作成して確認している。

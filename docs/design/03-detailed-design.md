@@ -469,30 +469,128 @@ Function 側に単価を持たせると二重管理になる。
 
 ---
 
-## 5. C-03: Admin UI Extension（未実装・設計のみ）
+## 5. C-03: Admin UI Extension（`noshi-order-block`。FR-15・FR-17 実装済み、FR-18 未実装）
 
-### 5.1 拡張定義（予定）
+### 5.1 拡張定義
 
 | 項目 | 値 |
 |---|---|
 | ターゲット | `admin.order-details.block.render` |
-| 生成コマンド | `shopify app generate extension --template admin_block` |
-| 追加スコープ | `write_orders` |
-| 前提設定 | `shopify.app.toml` の `[access.admin]` で `direct_api_mode = "online"` かつ `embedded_app_direct_api_access = true`（設定済み）。**この設定がないと 5.2 の「管理 API を直接呼ぶ」設計が成立しない** |
+| ディレクトリ | `extensions/noshi-order-block` |
+| 生成コマンド | `shopify app generate extension --template admin_block`（scaffold 後、target を手で `admin.order-details.block.render` に書き換えた。既定は `admin.product-details.block.render`） |
+| api_version | `2025-10`（CLI が scaffold 時に選んだ値をそのまま採用。設計段階では `2026-07` を想定していたが、実機では CLI の選択を優先した） |
+| コンポーネントモデル | Preact + Polaris web components（`s-*`）。`@shopify/ui-extensions` を `2025.10.x` に固定 |
+| 現在のスコープ | `read_orders`（表示のみのため）。FR-18（訂正）を実装するときに `write_orders` を追加する |
+| 前提設定 | `shopify.app.toml` の `[access.admin]` で `direct_api_mode = "online"` かつ `embedded_app_direct_api_access = true`（設定済み） |
 
-### 5.2 処理設計
+### 5.1.1 保護対象顧客データ（Protected Customer Data）の壁（2026-08-15 実機で判明）
+
+`read_orders` スコープを承認しただけでは注文を読めない。Order オブジェクトは
+Shopify の「保護対象顧客データ」に該当し、**スコープとは別に「保護対象顧客データへの
+アクセス」自体が有効になっている必要がある**。未承認のまま `order { ... }` を叩くと、
 
 ```
-1. 拡張の data から注文の ID を取得する
-   （data はリソース ID の配列のみで、商品行の中身は含まれない）
-2. Admin GraphQL API を直接呼び、注文の商品行と属性を取得する
-   query { order(id: …) { lineItems { … customAttributes { key value } } } }
-3. 熨斗情報（表書き・名入れ・のし種別）を商品ごとのカードとして表示する
-4. 訂正値が Order Metafield に存在すれば、元の入力値と併記する
-5. 訂正操作は metafieldsSet で Order Metafield に保存する
+"This app is not approved to access the Order object."
 ```
 
-### 5.3 訂正を別データとして持つ理由（FR-18 / CON-05）
+というエラーが返る（HTTP エラーにはならず GraphQL の `errors` に `ACCESS_DENIED` として乗る。
+5.4 のエラー処理はこれを踏まえている）。
+
+**このアプリのような Dev Dashboard 発行のアプリ（`shopify.app.toml` ベース）では、
+保護対象顧客データを要求する UI がPartner Dashboard / Dev Dashboard 双方に見当たらない
+既知の未解決事象がある**（Shopify コミュニティで複数報告あり、2026年時点で解決時期不明）。
+このアプリで実際に効いた回避策は次の手順:
+
+1. Dev Dashboard のアプリ概要ページ →「インストール数」カードの**「アプリをインストール」**
+   ボタンをクリックする（`shopify app dev` のセッション認可とは別の、正規の OAuth
+   インストールフロー）
+2. 対象ストアを選ぶと、同意画面を経ずに自動的にインストールが完了する
+   （新しいインストールレコードが作られる。例: `noshi-gift-app-2`）
+3. これだけで注文が読めるようになった。**自分の所有する開発ストアにインストールした
+   custom app は保護対象顧客データへのアクセスが既定で有効**という Shopify 側の仕様が、
+   このインストール操作をトリガーに反映されたとみられる
+
+**配布方法（Custom distribution）の選択も前提として必要**（Dev Dashboard →
+アプリ →「配布」→「配布方法を選択する」→ カスタム配布 → 選択する）。この選択は
+**不可逆**（一度選ぶと変更できない）。本アプリは当初から custom distribution を
+前提としているため、選択自体に迷いはない。
+
+### 5.2 データ取得
+
+`shopify.data.selected?.[0]?.id` で注文の GID を取得し、`shopify.query()` で
+GraphQL Admin API を直接呼ぶ（Standard API の direct fetch。自動認証される）。
+`data` はリソース ID の配列のみで、商品行の中身は含まれない。
+
+```graphql
+query OrderNoshi($id: ID!, $first: Int!) {
+  order(id: $id) {
+    id
+    name
+    lineItems(first: $first) {
+      nodes {
+        id
+        title
+        variantTitle
+        quantity
+        image { url altText }
+        customAttributes { key value }
+      }
+      pageInfo { hasNextPage }
+    }
+  }
+}
+```
+
+`first` は 100（`extensions/noshi-order-block/src/query.js` の `LINE_ITEMS_PAGE_SIZE`）。
+API 上限は 250 だが、贈答注文は行数が少ない想定で 1 往復に収めている。
+超えた場合は `pageInfo.hasNextPage` を見て警告バナーを出す（黙って切り捨てない）。
+
+**shop metafield（`$app:noshi_settings`）は読まない設計にした。** 料金行（のし代・包装料）の
+除外は、variant ID を突き合わせるのではなく「表書きが空でない行だけ拾う」という
+主判定だけで行う（5.2.1）。metafield が読めない場合に表示機能全体が壊れることを避けるため、
+かつアプリ ID をこの拡張に持ち込まずに済む（詳細設計 7.4 の未対応項目を増やさない）。
+
+### 5.2.1 料金行の除外・空値の非表示（`extensions/noshi-order-block/src/noshi.js`）
+
+```
+buildNoshiCards(lineItemNodes, corrections = {}):
+  各 line item について:
+    1. customAttributes を key→value のマップにする
+    2. _noshi_parent_key を持つ行(料金行)はスキップする(保険。3で自動的に落ちるが明示する)
+    3. 表書きが空文字の行はスキップする(熨斗なしの商品行 or 料金行そのもの)。これが主判定
+    4. 残った行を、値が空でない項目(表書き/名入れ/のし種別)だけ並べてカード化する
+```
+
+`NOSHI_KEYS`（`表書き`/`名入れ`/`のし種別`）と `PARENT_KEY_PROPERTY`（`_noshi_parent_key`）は
+`extensions/noshi-cart/assets/noshi-cart.js` と**同じキー名**を使う。片方だけ直すと
+表示が黙って消えるため、変更するときは両方のファイルを同時に直すこと。
+
+`corrections` 引数は FR-18 の受け皿。今回は常に `{}` を渡す。
+
+### 5.2.2 印字用データ（FR-17）
+
+読み取り専用の `s-text-area` に整形済みテキストを表示する方式を採った
+（`buildPrintText`）。Admin UI Extension にはクリップボード専用コンポーネントが無く
+（`s-clipboard-item` はチェックアウト拡張専用）、`navigator.clipboard` は remote-dom の
+サンドボックスから確実に使える保証がないため採用しなかった。テキストを選択してコピーする
+運用とし、`details` にその操作方法を明記した。
+
+書式（値・ラベルとも日本語のリテラル固定。UI ラベルだけが i18n で翻訳されるのに対し、
+この本文は保存値をそのまま出す非対称がある。受注側が読む印字用データの表記を
+言語設定によらず一定に保つため。NFR-08）:
+
+```
+#1006 熨斗指示 1件
+
+1) 抹茶 / 100g / 数量 1
+   表書き: 御中元
+   名入れ: 山田
+   のし種別: 外のし
+```
+
+空の項目は行ごと省く（5.2.1 の判定と揃える）。
+
+### 5.3 訂正を別データとして持つ理由（FR-18 / CON-05。未実装）
 
 注文確定後の商品行の属性を変更する API は存在しない。
 注文レベルの属性を更新する mutation はあるが、それは**商品行の属性ではない**。
@@ -512,8 +610,11 @@ Function 側に単価を持たせると二重管理になる。
 
 | 項目 | 内容 |
 |---|---|
-| 60 日制限 | Admin GraphQL API は既定で直近 60 日の注文しか参照できない。それ以前を扱うには `read_all_orders` が別途必要。実装時に「直近の注文だけで足りるか」を先に判断する |
-| 空属性の表示 | 熨斗を解除した行は属性が空文字で残る。受注画面に「表書き: （空）」が出ないよう、値が空の項目は描画しない |
+| 60 日制限 | Admin GraphQL API は既定で直近 60 日の注文しか参照できない。それ以前を扱うには `read_all_orders` が別途必要。**現時点では追加していない**（出荷業務は直近の注文が対象で、審査で用途を問われうるスコープを不要に持たないため） |
+| 空属性の表示（カード側） | 熨斗を解除した行は属性が空文字で残る。受注画面に「表書き: （空）」が出ないよう、値が空の項目は描画しない設計にした。**実機確認済み**（2026-08-15。熨斗なしの注文でその商品行自体がカードに出ないことを確認） |
+| 空属性の表示（Shopify 標準の注文詳細） | カード側では非表示にできるが、**Shopify 標準の注文詳細表示（商品行の属性一覧）は制御できない**。実機では「名入れ: 」とラベルの後が空欄のまま表示された（「（空）」という文字列は出ない）。実害は軽微だが、カードとは別に標準表示にも同じ内容が出る点は認識しておく |
+| `_noshi_parent_key` の露出 | 料金行（のし代・包装料）の Shopify 標準の注文詳細表示に、内部プロパティ `_noshi_parent_key: 52779173151037:...` がそのまま表示される（2026-08-15 実機で判明）。カート画面（Dawn）では先頭 `_` の属性を非表示にする実装になっているが、**Admin の注文詳細にはこの規則が効かない**。機能的な支障はないが、想定していなかった露出。テーマを介さない Shopify 標準表示のため、アプリ側から隠す手段はない |
+| ブロックの追加は注文ごとに必要 | Admin ブロックはページ単位でピン留めされるのではなく、**注文ごとに「+ ブロック」から追加する必要がある**（2026-08-15 実機で判明。過去に別の注文でブロックを追加していても、新しい注文では毎回追加操作が要る）。出荷担当の運用フローに乗せる際は、この手順を周知する必要がある |
 
 ---
 

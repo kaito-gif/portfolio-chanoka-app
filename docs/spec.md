@@ -8,7 +8,7 @@
 （`requirements.md` が調査ログの積み上げで、確定するたびにここへ反映するため）。
 実装で両者が食い違ったら、このファイルを正として `requirements.md` 側を追いつかせる。
 
-最終更新: 2026-08-14（技術リスク10項目の検証完了・独立行化への切り替え完了）
+最終更新: 2026-08-15（構成要素#5・FR-15/17を実装、フェーズ1完了）
 
 ## 何を作るか
 
@@ -42,8 +42,9 @@ Theme App Extension・Shopify Functions・Admin UI Extension のみで構成す�
           │
           ▼
 ┌─────────────────────┐
-│ Admin UI Extension（未実装・構成要素#5）
-│  admin.order-details.block.render で熨斗情報を表示・訂正
+│ extensions/noshi-order-block (Admin UI Extension・構成要素#5)
+│  admin.order-details.block.render で商品ごとの熨斗情報カード＋印字用データを表示
+│  (訂正機能=FR-18は未実装)
 └─────────────────────┘
 ```
 
@@ -59,6 +60,11 @@ Theme App Extension・Shopify Functions・Admin UI Extension のみで構成す�
 | 表書きの選択肢 | Metaobject（`app--{app_id}--noshi_title`） | マーチャントが管理画面から増減できる。7件投入済み（御中元・御歳暮・御祝・内祝・御礼・粗品・無地熨斗） |
 | variant ID・しきい値 | shop metafield `$app:noshi_settings`（type: json） | `{ noshiFeeVariantId, wrapFeeVariantId, freeWrapThreshold }` の3キー。**単価は持たない**（独立行化以降、単価の正はダミー商品のvariant価格。旧 `noshiFeeAmount`/`wrapFeeAmount` は廃止済み） |
 | 出荷担当による訂正値（未実装） | Order メタフィールド（app-owned、名前未定） | line item properties は書き換えられないため、訂正は別データとして持つ。元の入力と訂正後の値を両方表示する設計にする |
+
+**受注画面(`noshi-order-block`)が読むデータ**: `Order.lineItems.customAttributes`
+（表書き・名入れ・のし種別）を直接読む。**shop metafieldは読まない**（下記「実装するときに
+必ず守ること」参照）。料金行(のし代・包装料)の除外は「表書きが空でない行だけ拾う」という
+判定だけで足り、variant IDの突き合わせは不要という設計判断をした。
 
 **Liquid から `$app:noshi_settings` を読むときの注意**: `shop.metafields.app.noshi_settings`
 や `shop.metafields['$app:noshi_settings']` の短縮記法はこの環境では値を解決しない。
@@ -76,7 +82,10 @@ Theme App Extension・Shopify Functions・Admin UI Extension のみで構成す�
 | 2 | 表書きのマスタ管理（Metaobject） | ✅ 実装済み |
 | 3 | 入力値の保持（line item properties） | ✅ 実装済み |
 | 4 | のし・包装料の加算（独立行として `/cart/add.js` で追加） | ✅ 実装済み |
-| 5 | 受注画面での熨斗確認（Admin UI Extension） | ❌ 未着手。設計方針は下記「構成要素#5の実装方針」を参照 |
+| 5 | 受注画面での熨斗確認（Admin UI Extension） | ✅ 実装済み・実機確認済み（2026-08-15）。**これでフェーズ1完了** |
+
+**フェーズ1は2026-08-15に完了した。** 購入から出荷まで(カートで熨斗指定→料金加算→
+受注画面での確認)が初めて通しで動く状態になった。
 
 ### フェーズ2（説得力の上乗せ。ここまでで公開）
 
@@ -84,10 +93,10 @@ Theme App Extension・Shopify Functions・Admin UI Extension のみで構成す�
 |---|---|---|
 | 6 | 一定金額以上で包装料を無料（Discount Function） | ✅ 実装済み |
 | 7 | 購入後の贈答内容の確認表示（Checkout UI Extension） | ❌ 未着手。**プラン制約なしで作れるが、熨斗情報を直接読む手段がない**（下記「構成要素#7の制約」参照） |
-| 8 | 熨斗の印字用データ出力 | ❌ 未着手。構成要素#5に含める |
-| 9 | 受注後の熨斗の訂正 | ❌ 未着手。構成要素#5に含める |
+| 8 | 熨斗の印字用データ出力 | ✅ 実装済み・実機確認済み（2026-08-15）。構成要素#5に統合 |
+| 9 | 受注後の熨斗の訂正 | ❌ 未着手。書き込み系(`write_orders`・Order metafield定義)のため#5から分離して次段に回した |
 | 10 | Functions の自動テスト | ✅ fixture ベースの単体テスト実装済み（`noshi-wrap-free` 7件）。CI化は未着手（下記「CI化の方針」参照） |
-| 11 | デモ資材の作成 | ❌ 未着手 |
+| 11 | デモ資材の作成 | ❌ 未着手。構成要素#5実機確認時のスクリーンショットが素材候補としてある |
 
 ### フェーズ3（当面やらない）
 
@@ -137,21 +146,46 @@ Theme App Extension・Shopify Functions・Admin UI Extension のみで構成す�
 - Order を owner とする metafield の読み書きには `write_orders` スコープが要る
 - 60日より前の注文を読むには `read_all_orders` が別途必要（審査で用途を問われうる。
   実装時に「直近の注文だけで足りるか」を先に確認する）
+- **注文(Order)を読むには、スコープの承認だけでは足りない。** Order は Shopify の
+  「保護対象顧客データ」に該当し、`read_orders`/`write_orders` を承認しても
+  `"This app is not approved to access the Order object."` というエラーになることがある。
+  Dev Dashboard発行のアプリ(このリポジトリのようなshopify.app.tomlベース)では、
+  保護対象顧客データを要求するUIがPartner Dashboard/Dev Dashboardのどちらにも
+  見当たらない既知の未解決事象がある(Shopifyコミュニティで複数報告、解決時期不明)。
+  実際に効いた回避策: **Dev Dashboardのアプリ概要ページ→「アプリをインストール」ボタンから
+  正規のOAuthインストールフローを踏む**(`shopify app dev`のセッション認可とは別物)。
+  加えて配布方法(Custom distribution)の選択が前提として必要で、これは**不可逆**な操作
 
-## 構成要素#5の実装方針（Admin UI Extension）
+### Admin UI Extensionのブロック運用
 
-`admin.order-details.block.render` を使う。次の設計で進める:
+- ブロックは**ページ単位ではなく注文ごとに**「+ ブロック」から追加する必要がある。
+  過去に別の注文でピン留めしていても、新しい注文では毎回追加操作が要る
+- Shopify標準の注文詳細表示(商品行の属性一覧)には、カート側の「先頭`_`のプロパティは
+  非表示」というDawnの規則が効かない。`_noshi_parent_key`のような内部プロパティが
+  そのまま見えてしまう。実害はないが、アプリ側から隠す手段もない
 
-1. `BlockExtensionApi.data` から注文のGIDを取得する（`data` はリソースIDの配列のみで、
-   line item の中身は含まれない）
-2. Standard API の `query()`（GraphQL Admin API への direct fetch。自動認証される）で
-   `Order.lineItems.customAttributes` を取得し、熨斗情報（表書き・名入れ・のし種別）を
-   カードに表示する
-3. 訂正機能は、line item properties を書き換えるのではなく、**Order メタフィールドへ
-   `metafieldsSet` で訂正値を保存する**。元の入力と訂正後の値を両方表示する
-4. `shopify.app.toml` の `scopes` に `write_orders` を追加する
+## 構成要素#5の実装結果（Admin UI Extension、2026-08-15）
 
-scaffold コマンド: `shopify app generate extension --template admin_block`
+`extensions/noshi-order-block`。`admin.order-details.block.render` を使う。
+scaffoldは `shopify app generate extension --template admin_block`
+（既定targetは`admin.product-details.block.render`なので手で書き換えた）。
+api_versionはCLIが選んだ`2025-10`をそのまま採用(Preact + Polaris web components)。
+
+実装した設計(FR-15・FR-17。読み取りのみ、`read_orders`で足りる):
+
+1. `shopify.data.selected?.[0]?.id` から注文のGIDを取得する
+2. `shopify.query()` で `Order.lineItems.customAttributes` を取得し、
+   「表書きが空でない行だけ拾う」判定でカード化する(**shop metafieldは読まない**。
+   料金行は`表書き`を持たないためこの判定だけで除外できる。variant IDの突き合わせは不要)
+3. 値が空の項目(名入れなし等)は行ごと描画しない
+4. 印字用データは読み取り専用の`s-text-area`に整形済みテキストで出す
+   (Admin拡張にクリップボード専用コンポーネントは無く、`navigator.clipboard`も
+   サンドボックスから確実に使える保証がないため採用しなかった)
+5. 熨斗指定が0件の注文では`null`を返さず、明示的な空状態メッセージを出す
+   (`null`はブロックを畳むだけで、動いていないのか熨斗が無いのか区別がつかなくなる)
+
+FR-18(訂正)は未実装。`src/noshi.js`の`buildNoshiCards`に`corrections`引数の口を
+開けてあり、実装するときはOrder metafieldから読んだ値をそこに流し込む形になる。
 
 ## 構成要素#7の制約（Checkout UI Extension）
 
@@ -210,12 +244,22 @@ NFR-03(設定値の単一管理)を厳密には満たせていないが、影響
 
 ## 次にやること(優先順)
 
-1. **構成要素#5(Admin UI Extension)の実装** … フェーズ1最後のピース。上記「実装方針」に沿って
-   `shopify app generate extension --template admin_block` から着手
-2. 構成要素#8・9(印字用データ出力・受注後の訂正)… #5と同じ拡張に統合する
-3. 構成要素#7(Checkout UI Extension)の実現方式の再検討 … 着手前に必須。
+1. **構成要素#9(受注後の熨斗の訂正・FR-18)** … `write_orders`スコープとOrder metafield定義
+   (名前未定)を追加し、`noshi-order-block`に訂正UIを足す。`buildNoshiCards`の`corrections`
+   引数は既に用意済み
+2. 構成要素#7(Checkout UI Extension)の実現方式の再検討 … 着手前に必須。
    Thank youページからは熨斗情報を読む手段がないため、設計から見直す
-4. CI化(構成要素#10の残り) … GitHub Actions ワークフローの実機確認
-6. デモ資材の作成（構成要素#11）… フェーズ2の完了条件
-7. `README.md` の書き換え … 現在Shopifyテンプレートの雛形のままで、公開リポジトリの
+3. CI化(構成要素#10の残り) … GitHub Actions ワークフローの実機確認
+4. デモ資材の作成（構成要素#11）… フェーズ2の完了条件。構成要素#5実機確認時の
+   スクリーンショット(熨斗カード・印字用データ)を素材として使える
+5. `README.md` の書き換え … 現在Shopifyテンプレートの雛形のままで、公開リポジトリの
    入口として実態と食い違っている。設計書への導線もない
+
+### 既知の未検証事項
+
+- **名入れの値が消えたケースが1回だけ発生した**(2026-08-15)。カート・チェックアウトでは
+  正しく保存されていたが、注文確定後に値が空文字になっていた。再現を試みたが2回目は
+  発生せず、**日本語IME変換確定前に保存ボタンが押された可能性**を疑っている
+  (`noshi-cart.js`はIME合成中の入力を特別扱いしていない)。実装バグと断定はできておらず、
+  再現条件も未特定。次に似た事象が起きたら、IME入力の完了(確定)を待ってから保存する
+  よう`compositionstart`/`compositionend`イベントでガードする対応を検討する

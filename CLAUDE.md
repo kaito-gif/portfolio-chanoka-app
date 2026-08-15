@@ -89,7 +89,10 @@
 - 管理画面のメニュー名・プラン制約・パッケージのバージョンを記憶で断定する。
   **Shopify はプラン境界を頻繁に見直すため、着手のたびに公式ドキュメントで裏取りする**
 
-## 現在地(2026-08-14 時点)
+## 現在地(2026-08-15 時点)
+
+**フェーズ1が完了した。** 購入者側(カートでの熨斗指定・料金加算)と受注業務側
+(受注画面の熨斗カード)が揃い、「購入から出荷までの通し」が初めて成立した。
 
 **技術リスク10項目すべて片付いている（ドキュメント調査ベースのものも含む）。**
 重いもの(料金設計・税区分)は全部片付き、**確定事項の設計は崩れないことが確認済み**。
@@ -131,6 +134,10 @@ expand(展開された行だけプロパティ表示が更新されない)。対
   として追加し、`reconcileFeeLines` で親行の数量・キー変更に追随させる
 - `extensions/noshi-wrap-free` … Discount Function。一定金額以上で包装料の行そのものを
   100%割引。単価・しきい値は shop metafield `$app:noshi_settings` を参照
+- `extensions/noshi-order-block` … Admin UI Extension(`admin.order-details.block.render`)。
+  注文詳細ページに商品ごとの熨斗情報カード(表書き・名入れ・のし種別)と印字用データを表示。
+  `Order.lineItems.customAttributes` を直接読む(shop metafieldは読まない)。
+  訂正機能(FR-18)は未実装。マーチャントが注文ごとに手動でブロックを追加・ピン留めする必要がある
 
 fixture テストは7件(`noshi-wrap-free`)。**着手前に走らせて緑を確認すること。**
 
@@ -151,11 +158,10 @@ fixture テストは7件(`noshi-wrap-free`)。**着手前に走らせて緑を�
   (CLI 3.73〜3.84、[Shopify/cli#6044](https://github.com/shopify/cli/issues/6044)。
   3.85.4で修正済み、本リポジトリのCLIは4.6.1)。**CIランナーはUbuntu系のglibcイメージを
   使うこと**。詳細は `docs/requirements.md` の「リスク8」を参照
-- ~~リスク10~~ → 2026-08-14 ドキュメント調査で結論。**line item properties は注文確定後
-  書き換えられない**(`orderUpdate`の`customAttributes`は注文レベルのみ)。出荷担当の
-  「訂正」は app 独自の Order メタフィールドに別途保存する設計にする。書き込みには
-  `write_orders` スコープが必要。詳細は `docs/requirements.md` の「リスク10」を参照。
-  **実機での extension scaffold・読み書き確認はまだ行っていない**(構成要素#5の実装フェーズで行う)
+- ~~リスク10~~ → 2026-08-15 実装・実機確認まで完了。`extensions/noshi-order-block` として
+  構成要素#5を実装した(下記参照)。**line item properties は注文確定後書き換えられない**
+  (`orderUpdate`の`customAttributes`は注文レベルのみ)という当初の結論通り、
+  読み取り専用のカード表示(FR-15/17)は完了、訂正(FR-18、`write_orders`が要る)は次段に残した
 
 ### B. 実装フェーズに入る前に片付ける宿題
 
@@ -178,6 +184,33 @@ fixture テストは7件(`noshi-wrap-free`)。**着手前に走らせて緑を�
 
 各リスクを確認したら `docs/requirements.md` の該当項目に結果を追記し、確定した内容は
 「確定事項」の表へ移す。**「たぶん動く」で次に進まない。**
+
+### C. 構成要素#5(Admin UI Extension)の実装で踏んだ罠(2026-08-15)
+
+**最大の壁: 注文(Order)は Shopify の「保護対象顧客データ」に該当し、`read_orders`
+スコープの承認だけでは読めない。** `"This app is not approved to access the Order
+object."` というエラーになる。このアプリのような Dev Dashboard 発行のアプリでは、
+保護対象顧客データへのアクセスを要求する UI が Partner Dashboard・Dev Dashboard の
+どちらにも見当たらない既知の未解決事象(Shopifyコミュニティで複数報告、解決時期不明)。
+**実際に効いた回避策**: Dev Dashboard のアプリ概要ページ →「アプリをインストール」
+ボタンから正規の OAuth インストールフローを踏む(`shopify app dev` のセッション認可とは
+別経路)。加えて配布方法(Custom distribution)の選択が前提として必要で、これは
+**不可逆な操作**なのでユーザー自身に Partner Dashboard で実施してもらった。
+詳細手順は `docs/design/03-detailed-design.md` の 5.1.1 を参照。
+
+その他の罠:
+- Admin ブロックは**注文ごとに**手動で「+ ブロック」から追加する必要がある
+  (ページ単位のピン留めではない)
+- Shopify標準の注文詳細表示には Dawn の「先頭`_`のプロパティを非表示にする」規則が
+  効かず、`_noshi_parent_key` がそのまま見える(実害なし)
+- 名入れの値が1回だけ注文確定後に空文字になる事象が発生。再現せず未確定だが、
+  日本語IME変換確定前に保存ボタンが押された可能性を疑っている
+  (`noshi-cart.js`はIME合成中の入力を特別扱いしていない)。詳細は `docs/spec.md`
+  の「既知の未検証事項」
+
+料金行(のし代・包装料)をカードから除外する判定は、shop metafieldでvariant IDを
+突き合わせるのではなく「表書きが空でない行だけ拾う」という主判定だけで足りた
+(料金行は`表書き`属性を持たないため)。アプリIDをこの拡張に持ち込まずに済んでいる。
 
 ## セッション開始時の手順
 

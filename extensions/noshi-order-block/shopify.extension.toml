@@ -1,0 +1,13 @@
+# 構成要素#5(受注画面の熨斗カード)。api_version は scaffold(shopify app generate extension)
+# が選んだ値をそのまま使う(手で古い/新しいバージョンに書き換えない)。
+api_version = "2025-10"
+[[extensions]]
+name = "t:name"
+handle = "noshi-order-block"
+type = "ui_extension"
+uid = "cdbac471-b12f-cfed-c571-dfaf56bd4465bed614c3"
+description = "t:description"
+
+[[extensions.targeting]]
+module = "./src/OrderNoshiBlock.jsx"
+target = "admin.order-details.block.render"

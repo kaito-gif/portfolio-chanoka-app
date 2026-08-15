@@ -1,0 +1,11 @@
+{
+  "name": "noshi-order-block",
+  "private": true,
+  "version": "0.0.1",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "preact": "^10.10.x",
+    "@preact/signals": "^2.3.x",
+    "@shopify/ui-extensions": "2025.10.x"
+  }
+}
