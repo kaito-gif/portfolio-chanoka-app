@@ -636,7 +636,7 @@ buildNoshiCards(lineItemNodes, corrections = {}):
 
 ---
 
-## 5A. C-04: Customer Account UI Extension（`noshi-order-status`。FR-14 実装済み・2026-08-15）
+## 5A. C-07: Customer Account UI Extension（`noshi-order-status`。FR-16 実装済み・2026-08-15）
 
 ### 5A.1 拡張定義
 

@@ -44,7 +44,11 @@ flowchart TB
     end
 
     subgraph admin["Shopify 管理画面"]
-        adminblock["Admin UI Extension<br/>（構成要素#5・FR-18は未実装）"]
+        adminblock["Admin UI Extension<br/>（構成要素#5。表示・印字・訂正すべて実装済み）"]
+    end
+
+    subgraph customeraccount["購入者の注文ステータスページ"]
+        statusblock["Customer Account UI Extension<br/>（構成要素#7・C-07）"]
     end
 
     subgraph store["設定データ（Shopify ホスト）"]
@@ -62,6 +66,7 @@ flowchart TB
     checkout -->|割引計算| discount
     checkout --> order
     order --> adminblock
+    order --> statusblock
     ajax -.料金行として追加.-> dummy
 ```
 
@@ -71,10 +76,11 @@ flowchart TB
 |---|---|---|---|---|
 | C-01 | `extensions/noshi-cart` | Theme App Extension | カートページの熨斗入力 UI、料金行の追加・整合・非表示化 | 実装済み |
 | C-02 | `extensions/noshi-wrap-free` | Shopify Function（Discount） | 小計が一定額以上のとき包装料の行を 100% 割引 | 実装済み |
-| C-03 | `extensions/noshi-order-block` | Admin UI Extension | 受注画面での熨斗情報の表示・印字用出力。訂正は未実装 | 表示・印字は実装済み、訂正(FR-18)は未実装 |
+| C-03 | `extensions/noshi-order-block` | Admin UI Extension | 受注画面での熨斗情報の表示・印字用出力・訂正 | 実装済み（表示・印字・訂正すべて） |
 | C-04 | 表書きマスタ | Metaobject | 表書きの選択肢を保持する | 構築済み |
 | C-05 | 熨斗設定 | Shop Metafield（json） | 料金商品の variant ID・包装料無料のしきい値を保持する | 構築済み |
 | C-06 | 料金商品 | Product（2 点） | のし代・包装料。カート行として追加される実体 | 構築済み |
+| C-07 | `extensions/noshi-order-status` | Customer Account UI Extension | 購入者の注文ステータスページで熨斗情報を表示 | 実装済み |
 
 ### 2.3 実行環境
 
@@ -246,7 +252,8 @@ Shop Metafield（json）に一元化し、Theme App Extension と Discount Funct
 | SC-01 | カートページ 熨斗入力ブロック | Theme App Extension | FR-01〜FR-06 |
 | SC-02 | 表書きマスタ管理 | Shopify 標準の Metaobject 管理画面 | FR-13 |
 | SC-03 | 熨斗設定 | Admin API 経由で投入（管理画面 UI は持たない） | FR-14 |
-| SC-04 | 注文詳細 熨斗情報カード | Admin UI Extension（FR-15/17 実装済み、FR-18 未実装） | FR-15, FR-17, FR-18 |
+| SC-04 | 注文詳細 熨斗情報カード | Admin UI Extension（FR-15/17/18 すべて実装済み） | FR-15, FR-17, FR-18 |
+| SC-05 | 注文ステータスページ 熨斗情報カード | Customer Account UI Extension（C-07） | FR-16 |
 
 ### 4.2 要件と実現方式のトレーサビリティ
 
@@ -267,8 +274,8 @@ Shop Metafield（json）に一元化し、Theme App Extension と Discount Funct
 | FR-14 | Shop Metafield（json） | C-05 |
 | FR-15 | Admin UI Extension のカードで商品ごとの熨斗情報を表示 | C-03 |
 | FR-17 | 同拡張内に読み取り専用の印字用テキストを表示 | C-03 |
-| FR-18 | 未実装。Order Metafield への訂正値保存を予定（5.3 参照） | C-03 |
-| FR-16 | 実現方式未確定（CON-06 により再検討が必要） | — |
+| FR-18 | 実装済み。Order Metafield（`noshi_correction`）への訂正値保存（5.3 参照） | C-03 |
+| FR-16 | 実装済み。当初想定していたCheckout UI Extension（Thank youページ）はCON-06の制約で断念し、Customer Account UI Extension（注文ステータスページ）へ実現方式を変更した（詳細設計 5A 参照） | C-07 |
 
 ### 4.3 非機能要件と実現方式のトレーサビリティ
 
@@ -297,7 +304,7 @@ Shop Metafield（json）に一元化し、Theme App Extension と Discount Funct
 | D-02 | 料金行と商品行の対応 | 料金行の非表示プロパティ | アプリ | ❌ 不可 |
 | D-03 | 表書きマスタ | Metaobject | マーチャント | — |
 | D-04 | 熨斗設定 | Shop Metafield | 開発者 | — |
-| D-05 | 訂正値（未実装） | Order Metafield | 出荷担当 | ✅ 可能 |
+| D-05 | 訂正値 | Order Metafield（`noshi_correction`） | 出荷担当 | ✅ 可能 |
 
 ### 5.2 項目定義
 
@@ -464,7 +471,8 @@ flowchart TD
 | IF-05 | Liquid オブジェクト（Metaobject） | 表書きマスタの読み出し | C-01 |
 | IF-06 | Liquid オブジェクト（Shop Metafield） | 熨斗設定の読み出し | C-01 |
 | IF-07 | Function 入力クエリ（GraphQL） | 熨斗設定・カート行・割引種別の取得 | C-02 |
-| IF-08 | Admin GraphQL API | 注文の取得（実装済み）・訂正値の保存（未実装） | C-03 |
+| IF-08 | Admin GraphQL API | 注文の取得・訂正値の保存（`metafieldsSet`） | C-03 |
+| IF-09 | Customer Account UI Extensions Cart Lines API（`shopify.target`） | 注文ステータスページの商品行の熨斗情報（line item properties相当の`attributes`）を取得。Admin APIには依存しない | C-07 |
 
 **IF-05・IF-06 の注意**: Liquid からアプリ所有の Metaobject / Metafield を参照する際、
 `$app:` の短縮記法は使えない。名前空間にアプリ ID を直接指定する必要がある。
@@ -560,12 +568,12 @@ Shopify の「税率の上書き」機能でそのコレクションに 8% を�
 | `write_discounts` | Discount Function の登録 |
 | `write_products` | 料金商品（のし代・包装料）の作成・更新 |
 | `write_publications` | 料金商品をオンラインストアに公開（CON-04 への対応） |
-| `read_orders` | 構成要素#5（Admin UI Extension）が注文の熨斗情報を読み取る（2026-08-15 追加） |
+| `write_orders` | 構成要素#5（Admin UI Extension）が注文の熨斗情報を読み取り、訂正機能（FR-18）でOrder metafieldへ書き込む（2026-08-15 `read_orders`から差し替え） |
 
-構成要素#5の訂正機能（FR-18）を実装するときに `write_orders` へ差し替える。
-一時的に付与したスコープは用が済んだ時点で除去する運用とする。
-なお `read_orders` の承認だけでは注文を読めず、Order は Shopify の
+なお `write_orders`（当初は`read_orders`）の承認だけでは注文を読めず、Order は Shopify の
 「保護対象顧客データ」に該当するため別途アクセスの有効化が要った（詳細設計 5.1.1）。
+`noshi-order-status`（C-07）はAdmin APIを使わずCart Lines APIのみで完結するため、
+このスコープには依存しない。
 
 ### 10.2 データ保護
 
