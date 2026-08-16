@@ -292,4 +292,24 @@ skillの調査で、Cart Lines APIの`CartLine.attributes`にline item propertie
 熨斗ありの商品行にのみカードが描画され、のし代・包装料の行（表書きを持たない）には
 描画されないことを確認した。コンソールエラーもなし。
 
+2026-08-16: 構成要素#10（Functionsの自動テストのCI化）を実装し、フェーズ2の残りは
+構成要素#11（デモ資材）とREADME書き換えのみになった。`.github/workflows/test.yml`を
+新設し、GitHubに`kaito-gif/portfolio-chanoka-app`をprivateで新規作成してpush、
+GitHub Actions上で実際にfixtureテスト7件が緑になることを確認した（`gh run view`で
+ログを直接確認）。公開前のリーク検査(ng-words.txt)は未実施のため、まだpublicには
+していない。
+
+実機確認で2つの罠が見つかった:
+1. npm workspaces構成のため、`extensions/noshi-wrap-free`配下だけで`npm ci`しても
+   リポジトリルートの`package.json`（`@shopify/cli@4.6.1`、`engines.node >=22.12.0`）
+   まで解決対象になり、`node-version: 20`だとEBADENGINEで失敗する。22に上げて解消
+2. fixtureテストは`shopify app function build`を内部で呼ぶため、npm workspacesの
+   ルートにインストールされる`node_modules/.bin/shopify`が要る。`npm ci`を
+   サブディレクトリだけで実行すると`spawn shopify ENOENT`になる。ワークフロー内の
+   `npm ci`をリポジトリルートで実行するよう直して解消した
+
+事前にドキュメント調査で懸念していた「javy/wasm-opt/trampolineバイナリのダウンロードに
+外向き通信が要る」「Alpineベースは避ける」は、`ubuntu-latest`ランナーではどちらも
+問題にならなかった。
+
 <!-- 以降、作業のたびに日付付きで追記する -->

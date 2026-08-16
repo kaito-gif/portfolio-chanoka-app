@@ -8,7 +8,7 @@
 （`requirements.md` が調査ログの積み上げで、確定するたびにここへ反映するため）。
 実装で両者が食い違ったら、このファイルを正として `requirements.md` 側を追いつかせる。
 
-最終更新: 2026-08-15（構成要素#7(購入後の贈答内容確認・Customer Account UI Extension)を実装、フェーズ2の残りはCI化とデモ資材のみに）
+最終更新: 2026-08-16（構成要素#10(FunctionsのCI化)を実装、フェーズ2の残りはデモ資材とREADME書き換えのみに）
 
 ## 何を作るか
 
@@ -95,7 +95,7 @@ Theme App Extension・Shopify Functions・Admin UI Extension のみで構成す�
 | 7 | 購入後の贈答内容の確認表示（Customer Account UI Extension） | ✅ 実装済み・実機確認済み（2026-08-15）。実現方式をCheckout UI Extension(Thank youページ)からCustomer Account UI Extension(注文ステータスページ)へ変更した(下記「構成要素#7の実装結果」参照) |
 | 8 | 熨斗の印字用データ出力 | ✅ 実装済み・実機確認済み（2026-08-15）。構成要素#5に統合 |
 | 9 | 受注後の熨斗の訂正（FR-18） | ✅ 実装済み・実機確認済み（2026-08-15）。`noshi-order-block`に統合 |
-| 10 | Functions の自動テスト | ✅ fixture ベースの単体テスト実装済み（`noshi-wrap-free` 7件）。CI化は未着手（下記「CI化の方針」参照） |
+| 10 | Functions の自動テスト | ✅ fixture ベースの単体テスト実装済み（`noshi-wrap-free` 7件）。GitHub Actionsでのcheck済み（2026-08-16、下記「CI化の実装結果」参照） |
 | 11 | デモ資材の作成 | ❌ 未着手。構成要素#5実機確認時のスクリーンショットが素材候補としてある |
 
 ### フェーズ3（当面やらない）
@@ -271,25 +271,37 @@ scaffold）。
 (標準表示は制御できないため受容している構成要素#5と同じ判断)、UIとしては「同じ情報が
 2箇所に出る」冗長さがある点は認識しておく。
 
-## CI化の方針（Functions の自動テスト）
+## CI化の実装結果（Functions の自動テスト、2026-08-16）
 
-`(cd extensions/noshi-wrap-free && npm test -- --run)` はそのままCIに載せられる。
-`shopify app function build` はstore/Partnerログイン不要のローカルwasmビルドだが、
-
-- 初回に javy / wasm-opt / trampoline バイナリを `github.com` / `cdn.shopify.com` から
-  ダウンロードするため、CIランナーには外向き通信が要る（完全オフライン不可）
-- **Alpine（musl）ベースのコンテナは避ける**。trampolineバイナリがglibc依存で、CLI
-  3.73〜3.84時代にENOENTで失敗する既知の不具合があった（[Shopify/cli#6044](https://github.com/shopify/cli/issues/6044)、
-  3.85.4で修正済み）。`ubuntu-latest` 等のglibcイメージを使う
-
-GitHub Actions ワークフロー例（未作成・実機確認もまだ）:
+`.github/workflows/test.yml` として実装し、GitHub Actions上で実際にfixtureテスト7件が
+緑になることを確認した。リポジトリは`kaito-gif/portfolio-chanoka-app`にprivateで作成し
+push済み（公開前のリーク検査(ng-words.txt)は未実施のため、まだpublicにはしていない）。
 
 ```yaml
+- uses: actions/checkout@v4
 - uses: actions/setup-node@v4
   with:
-    node-version: 20
-- run: cd extensions/noshi-wrap-free && npm ci && npm test -- --run
+    node-version: 22
+- run: npm ci
+- working-directory: extensions/noshi-wrap-free
+  run: npm test -- --run
 ```
+
+実機確認で2つの罠が見つかり、両方このワークフローに反映済み:
+
+1. **`node-version: 20`ではEBADENGINEで失敗する**。npm workspaces構成のため、
+   `extensions/noshi-wrap-free`配下だけで`npm ci`してもリポジトリルートの
+   `package.json`（依存: `@shopify/cli@4.6.1`、`engines.node >=22.12.0`）まで
+   解決対象になる。`node-version: 22`に上げて解消した
+2. **`npm ci`をサブディレクトリだけで実行すると`spawn shopify ENOENT`で失敗する**。
+   fixtureテストは`shopify app function build`を内部で呼ぶため、npm workspacesの
+   ルートにインストールされる`node_modules/.bin/shopify`が要る。ワークフロー内の
+   `npm ci`をリポジトリルートで実行するよう変更して解消した
+
+事前にドキュメント調査で記録していた懸念（javy/wasm-opt/trampolineバイナリのダウンロード
+に外向き通信が要る・Alpineベースは避ける）は、`ubuntu-latest`ランナーを使ったことで
+問題にならなかった（`github.com`/`cdn.shopify.com`への通信はGitHub Actionsのデフォルト
+ランナーでは制限されない）。
 
 ## やらないこと
 
@@ -314,11 +326,12 @@ NFR-03(設定値の単一管理)を厳密には満たせていないが、影響
 
 ## 次にやること(優先順)
 
-1. CI化(構成要素#10の残り) … GitHub Actions ワークフローの実機確認
-2. デモ資材の作成（構成要素#11）… フェーズ2の完了条件。構成要素#5・#7実機確認時の
+1. デモ資材の作成（構成要素#11）… フェーズ2の最後の完了条件。構成要素#5・#7実機確認時の
    スクリーンショット(熨斗カード・印字用データ・注文ステータスページ)を素材として使える
-3. `README.md` の書き換え … 現在Shopifyテンプレートの雛形のままで、公開リポジトリの
+2. `README.md` の書き換え … 現在Shopifyテンプレートの雛形のままで、公開リポジトリの
    入口として実態と食い違っている。設計書への導線もない
+3. 公開前のリーク検査(ng-words.txt)を実施し、GitHubリポジトリをpublicに切り替える
+   （現在は`kaito-gif/portfolio-chanoka-app`にprivateで作成済み）
 
 ### 既知の未検証事項
 
