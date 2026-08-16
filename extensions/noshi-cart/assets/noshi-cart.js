@@ -353,10 +353,21 @@
    * ページ読み込み時、および Dawn が数量±ボタン等でカートセクションのHTMLを
    * 丸ごと差し替えたとき(下の MutationObserver 参照)に呼ぶ「静かな」整合。
    * reload はしない。fee 行の数量追随・孤児の掃除・非表示化だけを行う。
+   *
+   * ■ 実行中に来た呼び出しを捨てずに1回分キューする(2026-08-16 バグ調査で追加)
+   * 以前は reconciling フラグで「実行中なら何もしない」だけだった。ページ読み込み時の
+   * 初回 passiveReconcile がまだネットワーク往復中に Dawn の数量±ボタンで
+   * MutationObserver が発火すると、その数量変更分の再整合が丸ごと握りつぶされ、
+   * のし代・包装料の行の数量が古いまま残ることがあった(2026-08-16、デモ撮影中に観測)。
+   * 実行中の呼び出しは「完了後にもう一度だけ最新状態で整合し直す」よう予約する。
    */
   var reconciling = false;
+  var reconcilePending = false;
   function passiveReconcile() {
-    if (reconciling) return;
+    if (reconciling) {
+      reconcilePending = true;
+      return;
+    }
     reconciling = true;
     fetchCart()
       .then(function (cart) {
@@ -373,6 +384,10 @@
       })
       .finally(function () {
         reconciling = false;
+        if (reconcilePending) {
+          reconcilePending = false;
+          passiveReconcile();
+        }
       });
   }
 
@@ -482,13 +497,48 @@
     if (line) markDirty(line);
   });
 
+  /*
+   * 名入れフィールドが IME 変換中かどうかを追跡する(2026-08-16 バグ調査で追加)。
+   * 「保存」ボタンを isComposing 中にクリックすると、click イベント発火のタイミングが
+   * ブラウザによっては compositionend より先行し、変換確定前の値のまま
+   * readFields() が読み取ってしまう可能性がある
+   * (2026-08-15、注文確定後に名入れが空文字になった事象で疑っている経路)。
+   * compositionstart/compositionend で「変換中」を明示的に持ち、保存ボタン側で待つ。
+   */
+  document.addEventListener('compositionstart', function (event) {
+    var target = event.target;
+    if (!target || !target.matches || !target.matches('[data-noshi-field="name"]')) return;
+    target.dataset.composing = 'true';
+  });
+
+  document.addEventListener('compositionend', function (event) {
+    var target = event.target;
+    if (!target || !target.matches || !target.matches('[data-noshi-field="name"]')) return;
+    delete target.dataset.composing;
+  });
+
   document.addEventListener('click', function (event) {
     var button = event.target && event.target.closest ? event.target.closest('[data-noshi-save]') : null;
     if (!button) return;
 
     event.preventDefault();
     var line = lineOf(button);
-    if (line) save(line);
+    if (!line) return;
+
+    var nameEl = line.querySelector('[data-noshi-field="name"]');
+    if (nameEl && nameEl.dataset.composing === 'true') {
+      /* 変換確定を待ってから保存する。ユーザーの入力自体は妨げない。 */
+      nameEl.addEventListener(
+        'compositionend',
+        function () {
+          save(line);
+        },
+        { once: true }
+      );
+      return;
+    }
+
+    save(line);
   });
 
   /* 初回の非表示化・整合。 */
