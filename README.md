@@ -1,156 +1,78 @@
-# Shopify App Template - Extension Only
+# chanoka のし・ギフト対応アプリ
 
-This is a template for building a [Shopify app](https://shopify.dev/docs/apps/getting-started) using [Preact](https://preactjs.com/) and [Vite](https://vite.dev/). It uses Shopify's [Direct API access](https://shopify.dev/docs/api/app-home#direct-api-access) and [App Bridge](https://shopify.dev/docs/api/app-bridge) to make authenticated calls to the Shopify Admin API directly from the browser — no server required.
+副業ポートフォリオ用に構築した、Shopifyアプリです。日本の贈答ECに特有の
+「熨斗（のし）・ギフト対応」（熨斗の要否・表書き・名入れ・外のし／内のし）を、
+Shopifyの拡張機能だけで実現します。架空の日本茶ブランド「chanoka（茶の香）」の
+デモストアに実際にインストールして動かしています。
 
-Rather than cloning this repo, follow the [Quick Start steps](#quick-start) below.
+このリポジトリはポートフォリオとして公開しているものであり、クライアント案件の成果物ではありません。
+掲載しているブランド・商品・人物名はすべて架空のものです。
 
-## Quick start
+## デモ
 
-### Prerequisites
+本アプリの成果は Admin 画面・チェックアウト・注文ステータスページの中にしか現れず、
+ストアURLを渡すだけでは動作を見せられません。そのため画面録画・スクリーンショットを
+`docs/demo/` にまとめています。
 
-Before you begin, you'll need to [download and install the Shopify CLI](https://shopify.dev/docs/apps/tools/cli/getting-started) if you haven't already.
+| | |
+|---|---|
+| カートで熨斗を指定 → 料金加算 | ![](docs/demo/01-cart-noshi-fee.gif) |
+| 一定金額到達で包装料が無料になる | ![](docs/demo/02-wrap-fee-free.gif) |
+| 受注画面の熨斗情報カード・印字用データ | ![](docs/demo/03-admin-noshi-card.png) |
+| 受注後の熨斗の訂正 | ![](docs/demo/04-admin-correction.gif) |
+| 購入者側の注文ステータスページ | ![](docs/demo/05-customer-order-status.png) |
 
-### Setup
+## アーキテクチャ
 
-```shell
-shopify app init --template=https://github.com/Shopify/shopify-app-template-extension-only
+**extension-only app**（custom distribution）。開発者側のWebサーバーを持たず、
+Shopifyがホストする拡張機能だけで構成しています。月額のホスティング費用が
+発生しない構成を意図的に選んでいます。
+
+```
+カートページ（Theme App Extension）
+  → line item properties（表書き・名入れ・のし種別）＋ 独立したカート行（のし代・包装料）
+      → Discount Function（一定金額以上で包装料を100%割引）
+          → 注文確定
+              → Admin UI Extension（受注画面に熨斗カード・印字用データ・訂正機能）
+              → Customer Account UI Extension（購入者の注文ステータスページに熨斗カード）
 ```
 
-### Local Development
+表書きの選択肢はMetaobjectで持ち、コードにハードコードしていません
+（マーチャントが管理画面から増減できます）。
 
-```shell
-shopify app dev
+## 拡張機能構成
+
+| ディレクトリ | 種別 | 役割 |
+|---|---|---|
+| `extensions/noshi-cart` | Theme App Extension | カートページの熨斗入力ブロック。のし代・包装料を独立行として追加 |
+| `extensions/noshi-wrap-free` | Discount Function | 一定金額以上で包装料を無料に |
+| `extensions/noshi-order-block` | Admin UI Extension | 受注画面に熨斗情報カード・印字用データを表示し、受注後の訂正を受け付ける |
+| `extensions/noshi-order-status` | Customer Account UI Extension | 購入者の注文ステータスページに熨斗情報カードを表示 |
+
+## 技術スタック
+
+- Shopify CLI / extension-only app（custom distribution）
+- Preact + Polaris web components（Admin UI Extension / Customer Account UI Extension）
+- Shopify Functions（Discount）/ Vitest によるfixtureテスト
+- GitHub Actions（Functionsの自動テストをCIで実行）
+
+## ドキュメント
+
+- `docs/spec.md` — 実装仕様書。何を作るか・実装状況・実装時の注意
+- `docs/design/` — 要件定義書・基本設計書・詳細設計書の三層
+- `docs/requirements.md` — 技術検証の実測ログ
+- `docs/context.md` — 背景・開発ストアの現状・進捗
+
+## ローカル環境での検証
+
+```bash
+npm ci
+npm run dev  # shopify app dev
 ```
 
-Press P to open the URL to your app. Once you click install, you can start development.
+Functionsのfixtureテストは以下で実行できます（GitHub Actionsでも同じコマンドを実行）。
 
-Local development is powered by [Shopify CLI](https://shopify.dev/docs/apps/build/cli-for-apps/test-apps-locally). It logs into your account, connects to an app, provides environment variables, updates remote config, creates a tunnel and provides commands to generate extensions.
-
-## How it works
-
-### Authentication
-
-This template uses [Shopify managed installation](https://shopify.dev/docs/apps/build/authentication-authorization/app-installation). Shopify handles the OAuth flow and app installation automatically. Once installed, the app is fully embedded in the Shopify Admin.
-
-### Querying data
-
-This template uses [Direct API access](https://shopify.dev/docs/api/app-home#direct-api-access) — the Shopify Admin API is called directly from the browser using App Bridge. No server-side code is needed.
-
-This template comes pre-configured with examples of querying data using GraphQL with direct API access, and using [metaobjects](https://shopify.dev/docs/apps/custom-data/metaobjects) to store and retrieve structured app data — see [/shared/models/faq.ts](./shared/models/faq.ts).
-
-### App Bridge
-
-[App Bridge](https://shopify.dev/docs/api/app-bridge) is loaded automatically in embedded apps.
-
-### Polaris Web Components
-
-This template uses [Polaris Web Components](https://shopify.dev/docs/api/app-home/web-components) — the native custom element version of Polaris that works in any framework (including Preact). No additional package installation is required as they are provided automatically in the Shopify Admin iframe.
-
-## GraphQL Codegen
-
-This template is pre-configured with [GraphQL Codegen](https://the-guild.dev/graphql/codegen) to generate TypeScript types from your GraphQL queries.
-
-To regenerate types after updating queries:
-
-```shell
-npm run codegen
+```bash
+cd extensions/noshi-wrap-free
+npm test -- --run
 ```
-
-To watch for changes:
-
-```shell
-npm run codegen:watch
-```
-
-## Build
-
-Build the app by running:
-
-Using npm:
-
-```shell
-npm run build
-```
-
-Using yarn:
-
-```shell
-yarn build
-```
-
-Using pnpm:
-
-```shell
-pnpm run build
-```
-
-## Shopify Dev MCP
-
-This template is configured with the Shopify Dev MCP. This instructs [Cursor](https://cursor.com/), [GitHub Copilot](https://github.com/features/copilot), [Claude Code](https://claude.com/product/claude-code), and [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) to use the Shopify Dev MCP.
-
-For more information on the Shopify Dev MCP please read [the documentation](https://shopify.dev/docs/apps/build/devmcp).
-
-## Metafields and Metaobjects
-
-This template uses [metaobjects](https://shopify.dev/docs/apps/custom-data/metaobjects) and [metafields](https://shopify.dev/docs/apps/custom-data/metafields) to store structured app data without a custom database.
-
-### Metaobject: FAQ
-
-The template defines a `faq` metaobject type for storing FAQ entries. Each FAQ has a question, answer, a flag to control visibility on the FAQ page, and optional product associations.
-
-Defined in `shopify.app.toml`:
-
-```toml
-[metaobjects.app.faq]
-name = "FAQ"
-
-[metaobjects.app.faq.fields.question]
-name = "Question"
-type = "single_line_text_field"
-required = true
-
-[metaobjects.app.faq.fields.answer]
-name = "Answer"
-type = "multi_line_text_field"
-required = true
-
-[metaobjects.app.faq.fields.show_on_faq_page]
-name = "Show on FAQ page"
-type = "boolean"
-
-[metaobjects.app.faq.fields.products]
-name = "Products"
-type = "list.product_reference"
-```
-
-### Metafield: Product FAQ
-
-A metafield definition links individual products to a FAQ metaobject entry, allowing merchants to associate a FAQ with specific products.
-
-```toml
-[product.metafields.app.faq]
-name = "FAQ"
-description = "FAQ for this product"
-type = "metaobject_reference<$app:faq>"
-access.admin = "merchant_read_write"
-```
-
-These definitions are automatically synced to Shopify when you run `shopify app dev` or `shopify app deploy`. See [/shared/models/faq.ts](./shared/models/faq.ts) for the client-side model that reads and writes these metaobjects via the Admin GraphQL API.
-
-## Resources
-
-Preact & Vite:
-
-- [Preact docs](https://preactjs.com/guide/v10/getting-started)
-- [Vite docs](https://vite.dev/)
-
-Shopify:
-
-- [Intro to Shopify apps](https://shopify.dev/docs/apps/getting-started)
-- [Direct API access](https://shopify.dev/docs/api/app-home#direct-api-access)
-- [Shopify CLI](https://shopify.dev/docs/apps/tools/cli)
-- [App Bridge](https://shopify.dev/docs/api/app-bridge)
-- [Polaris Web Components](https://shopify.dev/docs/api/app-home/web-components)
-- [Metaobjects](https://shopify.dev/docs/apps/custom-data/metaobjects)
-- [App extensions](https://shopify.dev/docs/apps/app-extensions/list)
-- [Shopify Functions](https://shopify.dev/docs/api/functions)
