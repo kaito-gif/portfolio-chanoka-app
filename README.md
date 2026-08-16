@@ -1,5 +1,7 @@
 # chanoka のし・ギフト対応アプリ
 
+![CI](https://github.com/kaito-gif/portfolio-chanoka-app/actions/workflows/test.yml/badge.svg)
+
 副業ポートフォリオ用に構築した、Shopifyアプリです。日本の贈答ECに特有の
 「熨斗（のし）・ギフト対応」（熨斗の要否・表書き・名入れ・外のし／内のし）を、
 Shopifyの拡張機能だけで実現します。架空の日本茶ブランド「chanoka（茶の香）」の
