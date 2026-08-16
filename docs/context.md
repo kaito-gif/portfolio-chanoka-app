@@ -349,4 +349,17 @@ synthetic発火させて検証し、変換中は`/cart/change.js`が発火しな
 `compositionend`後に正しい値で保存されることを確認した。ただし元の事象自体の
 再現条件は特定できていないため、これが根本原因だったと断定はできない。
 
+2026-08-16: GitHubリポジトリ`kaito-gif/portfolio-chanoka-app`をpublic化した。
+
+public化前の最終チェックとしてng-words.txt検査を再実行したところリークは無かったが、
+それとは別にユーザーの実Gmailアドレス(`docs/context.md`・`docs/spec.md`・
+`docs/design/03-detailed-design.md`の3箇所、テスト注文作成時のサインインの記述)が
+残っていることに気付いた。ng-words.txtは氏名・屋号・実ドメイン中心のリストで、
+メールアドレスは対象外だったため検出されなかった。
+
+現在のファイルから該当記述を削除した上で、コミット`52b7b51`で導入され以降の履歴に
+残り続けていたため、`git filter-repo --replace-text`で全コミット履歴からアドレスを
+`[redacted]`に置換し、`git push --force`でリモートへ反映してからpublic化した
+(書き換え前の状態はローカルにbundleでバックアップを取ってから実施)。
+
 <!-- 以降、作業のたびに日付付きで追記する -->

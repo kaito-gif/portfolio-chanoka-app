@@ -362,9 +362,8 @@ Shopifyテンプレートの雛形（App Home・Preact/Vite・GraphQL Codegenの
 
 ## 次にやること(優先順)
 
-1. **GitHubリポジトリのpublic化**（ユーザー判断待ち）。現在は
-   `kaito-gif/portfolio-chanoka-app`にprivateで作成済み、リーク検査はクリア済みなので
-   いつでも`gh repo edit --visibility public`で切り替え可能
+フェーズ1・2は完了し、`kaito-gif/portfolio-chanoka-app`は2026-08-16にpublic化済み。
+残タスクは無い（フェーズ3は要件定義時点で「当面やらない」と決めている）。
 
 ### 解消済みの既知の問題（2026-08-16対応）
 
