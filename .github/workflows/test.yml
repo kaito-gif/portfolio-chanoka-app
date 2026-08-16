@@ -21,7 +21,10 @@ jobs:
           # engines.node >=22.12.0)まで解決対象になる。node 20ではEBADENGINEで
           # 落ちるため22系を使う(2026-08-16実測)。
           node-version: 22
-      - working-directory: extensions/noshi-wrap-free
-        run: npm ci
+      # ルートで npm ci する。テストは `shopify app function build` を裏で叩くため、
+      # ルートのnode_modules/.bin/shopify(@shopify/cli)がインストールされている必要が
+      # ある。extensions/noshi-wrap-free配下だけで npm ci すると shopify バイナリが
+      # 入らず `spawn shopify ENOENT` になる(2026-08-16実測)。
+      - run: npm ci
       - working-directory: extensions/noshi-wrap-free
         run: npm test -- --run
