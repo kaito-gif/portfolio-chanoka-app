@@ -1,0 +1,23 @@
+name: Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  noshi-wrap-free:
+    # ubuntu-latest(glibc)を使う。Alpine(musl)ベースのイメージは、Shopify CLIが
+    # javy/wasm-opt/trampolineバイナリの実行に失敗する既知の不具合があった
+    # (CLI 3.73〜3.84、3.85.4で修正済み。本リポジトリのCLIは4.6.1だが、
+    # 念のためglibcイメージを使う方針は維持する)。
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - working-directory: extensions/noshi-wrap-free
+        run: npm ci
+      - working-directory: extensions/noshi-wrap-free
+        run: npm test -- --run
